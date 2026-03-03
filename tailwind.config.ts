@@ -11,8 +11,8 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Instrument Sans', 'sans-serif'],
-        serif: ['Playfair Display', 'serif'],
+        sans: ['var(--font-instrument-sans)', 'sans-serif'],
+        serif: ['var(--font-playfair-display)', 'serif'],
         code: ['monospace'],
       },
       colors: {

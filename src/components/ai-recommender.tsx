@@ -3,28 +3,51 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Sparkles, Baby, Loader2, ArrowRight, CheckCircle2 } from 'lucide-react';
+import { Sparkles, Baby, Loader2, ArrowRight, CheckCircle2, User, Phone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { supabase } from '@/lib/supabase';
 import { personalizedLayetteKitRecommendation, PersonalizedLayetteKitRecommendationOutput } from '@/ai/flows/personalized-layette-kit-recommendation';
 
 export function AIRecommender() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<PersonalizedLayetteKitRecommendationOutput | null>(null);
   const [form, setForm] = useState({
+    name: '',
+    whatsapp: '',
     babyAgeSize: '',
     season: ''
   });
 
   const handleRecommend = async () => {
-    if (!form.babyAgeSize || !form.season) return;
+    if (!form.babyAgeSize || !form.season || !form.name || !form.whatsapp) return;
     setLoading(true);
     try {
-      const recommendation = await personalizedLayetteKitRecommendation(form);
+      const recommendation = await personalizedLayetteKitRecommendation({
+        babyAgeSize: form.babyAgeSize,
+        season: form.season
+      });
       setResult(recommendation);
+      
+      // Salvar o lead no Supabase
+      try {
+        await supabase.from('leads').insert({
+          name: form.name,
+          whatsapp: form.whatsapp,
+          source: 'ai_recommender',
+          data: { 
+            babyAgeSize: form.babyAgeSize, 
+            season: form.season,
+            recommendations: recommendation.recommendations 
+          }
+        });
+      } catch (dbError) {
+        // Silently fail
+      }
     } catch (error) {
       console.error(error);
     } finally {
@@ -54,11 +77,38 @@ export function AIRecommender() {
                 </CardTitle>
                 <CardDescription className="text-lg">Personalize sua experiência em segundos.</CardDescription>
               </CardHeader>
-              <CardContent className="px-0 space-y-8 mt-6 relative z-10">
+              <CardContent className="px-0 space-y-6 mt-6 relative z-10">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-3">
+                    <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-foreground/40">Seu Nome</Label>
+                    <div className="relative">
+                      <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-primary/40" />
+                      <Input 
+                        placeholder="Ex: Maria Silva" 
+                        className="rounded-2xl border-muted bg-muted/20 h-14 pl-11"
+                        value={form.name}
+                        onChange={(e) => setForm({ ...form, name: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-foreground/40">WhatsApp</Label>
+                    <div className="relative">
+                      <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-primary/40" />
+                      <Input 
+                        placeholder="(00) 00000-0000" 
+                        className="rounded-2xl border-muted bg-muted/20 h-14 pl-11"
+                        value={form.whatsapp}
+                        onChange={(e) => setForm({ ...form, whatsapp: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                </div>
+
                 <div className="space-y-3">
-                  <Label className="text-sm font-bold uppercase tracking-widest text-foreground/60">Idade / Tamanho</Label>
+                  <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-foreground/40">Idade / Tamanho do Bebê</Label>
                   <Select onValueChange={(val) => setForm({ ...form, babyAgeSize: val })}>
-                    <SelectTrigger className="rounded-2xl border-muted bg-muted/20 h-14 text-lg px-6">
+                    <SelectTrigger className="rounded-2xl border-muted bg-muted/20 h-14 px-6">
                       <SelectValue placeholder="Selecione o tamanho" />
                     </SelectTrigger>
                     <SelectContent className="rounded-2xl">
@@ -71,9 +121,9 @@ export function AIRecommender() {
                 </div>
                 
                 <div className="space-y-3">
-                  <Label className="text-sm font-bold uppercase tracking-widest text-foreground/60">Estação do Nascimento</Label>
+                  <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-foreground/40">Estação do Nascimento</Label>
                   <Select onValueChange={(val) => setForm({ ...form, season: val })}>
-                    <SelectTrigger className="rounded-2xl border-muted bg-muted/20 h-14 text-lg px-6">
+                    <SelectTrigger className="rounded-2xl border-muted bg-muted/20 h-14 px-6">
                       <SelectValue placeholder="Selecione a estação" />
                     </SelectTrigger>
                     <SelectContent className="rounded-2xl">
@@ -87,12 +137,15 @@ export function AIRecommender() {
 
                 <Button 
                   onClick={handleRecommend} 
-                  disabled={loading || !form.babyAgeSize || !form.season}
-                  className="w-full h-16 rounded-full text-xl font-bold gap-3 shadow-2xl shadow-primary/30 transition-all hover:scale-[1.02]"
+                  disabled={loading || !form.babyAgeSize || !form.season || !form.name || !form.whatsapp}
+                  className="w-full h-16 rounded-full text-lg font-bold gap-3 shadow-2xl shadow-primary/20 transition-all hover:scale-[1.02] bg-pink-gradient border-none text-white"
                 >
                   {loading ? <Loader2 className="w-6 h-6 animate-spin" /> : <Sparkles className="w-6 h-6" />}
-                  Gerar Curadoria
+                  Gerar Minha Curadoria
                 </Button>
+                <p className="text-[10px] text-center text-muted-foreground opacity-60">
+                  Ao clicar, você concorda em receber nossa curadoria via WhatsApp.
+                </p>
               </CardContent>
             </Card>
 

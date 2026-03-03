@@ -4,10 +4,21 @@ export interface Product {
   name: string;
   description: string;
   price: number;
+  promoPrice?: number;
   category: string;
   images: string[];
+  isUpsell?: boolean;
   limitedStock?: boolean;
   stockCount?: number;
+  sizes?: string[];
+}
+
+export interface Coupon {
+  id: string;
+  code: string;
+  discountType: 'percentage' | 'fixed';
+  discountValue: number;
+  active: boolean;
 }
 
 export interface Testimonial {

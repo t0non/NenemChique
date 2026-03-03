@@ -7,25 +7,14 @@ import { ProductCard } from '@/components/product-card';
 import { CATEGORIES } from '@/lib/data';
 import { Button } from '@/components/ui/button';
 import { ListFilter, Loader2 } from 'lucide-react';
-import { useFirestore, useCollection } from '@/firebase';
-import { collection } from 'firebase/firestore';
-import { useMemoFirebase } from '@/firebase/use-memo-firebase';
+import { useData } from '@/context/data-context';
 import { Product } from '@/lib/types';
-import { PRODUCTS } from '@/lib/data';
 
 export default function CatalogPage() {
-  const db = useFirestore();
+  const { products, isLoading: loading } = useData();
   const searchParams = useSearchParams();
   const initialCategory = searchParams.get('category') || 'all';
   const [activeCategory, setActiveCategory] = useState(initialCategory);
-
-  const productsQuery = useMemoFirebase(() => {
-    if (!db) return null;
-    return collection(db, 'products');
-  }, [db]);
-
-  const { data: fetched = [], loading } = useCollection<Product>(productsQuery as any);
-  const products: Product[] = fetched.length ? fetched : PRODUCTS;
 
   useEffect(() => {
     setActiveCategory(searchParams.get('category') || 'all');

@@ -77,7 +77,7 @@ const baseProducts: Product[] = [
   {
     id: 'p4',
     name: 'Kit Enxoval Completo 12 Peças',
-    description: 'Tudo o que você precisa para os primeiros meses. Curadoria exclusiva Nuvem.',
+    description: 'Tudo o que você precisa para os primeiros meses. Curadoria exclusiva Neném Chique.',
     price: 599.00,
     category: 'kits',
     images: ['https://picsum.photos/seed/kit-completo-12/800/1000'],
@@ -86,7 +86,7 @@ const baseProducts: Product[] = [
   {
     id: 'p4-basico',
     name: 'Kit Primeiros Passos 5 Peças',
-    description: 'Essenciais para a primeira semana. Toque de nuvem na pele do bebê.',
+    description: 'Essenciais para a primeira semana. Toque de Neném Chique na pele do bebê.',
     price: 249.00,
     category: 'kits',
     images: ['https://picsum.photos/seed/kit-basico-5/800/1000'],
@@ -130,7 +130,7 @@ export const TESTIMONIALS: Testimonial[] = [
     name: 'Mariana Silva',
     comment: 'A saída de maternidade é linda demais! O material é muito macio e chegou super rápido. Recomendo muito.',
     rating: 5,
-    imageUrl: 'https://images.unsplash.com/photo-1594824476967-48c8b964273f?q=80&w=200&auto=format&fit=crop',
+    imageUrl: 'https://picsum.photos/seed/t1/200/200',
     babyName: 'Arthur',
     location: 'São Paulo, SP'
   },
@@ -139,7 +139,7 @@ export const TESTIMONIALS: Testimonial[] = [
     name: 'Camila Rodrigues',
     comment: 'O atendimento pelo WhatsApp foi excelente. Tiraram todas as minhas dúvidas sobre os tamanhos e o kit é maravilhoso.',
     rating: 5,
-    imageUrl: 'https://images.unsplash.com/photo-1544126592-807daa2b565b?q=80&w=200&auto=format&fit=crop',
+    imageUrl: 'https://picsum.photos/seed/t2/200/200',
     babyName: 'Alice',
     location: 'Rio de Janeiro, RJ'
   },
@@ -148,7 +148,7 @@ export const TESTIMONIALS: Testimonial[] = [
     name: 'Fernanda Oliveira',
     comment: 'Kits impecáveis. Comprei o enxoval completo aqui e a qualidade é surpreendente. O tricot é muito suave.',
     rating: 5,
-    imageUrl: 'https://images.unsplash.com/photo-1559734840-f9509ee5677f?q=80&w=200&auto=format&fit=crop',
+    imageUrl: 'https://picsum.photos/seed/t3/200/200',
     babyName: 'Theo',
     location: 'Curitiba, PR'
   },

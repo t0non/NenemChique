@@ -47,6 +47,9 @@
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
+  .star-glow {
+    filter: drop-shadow(0 0 6px rgba(212, 175, 55, 0.55));
+  }
 }
 
 .hero-gradient {

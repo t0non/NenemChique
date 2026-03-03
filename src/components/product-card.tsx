@@ -14,25 +14,24 @@ export function ProductCard({ product }: { product: Product }) {
   const [qty, setQty] = useState(1);
   const installmentPrice = (product.price / 12).toFixed(2).replace('.', ',');
   const cashPrice = (product.price * 0.95).toFixed(2).replace('.', ',');
+  const BLUR = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMSIgaGVpZ2h0PSIxIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxyZWN0IHdpZHRoPSIxIiBoZWlnaHQ9IjEiIGZpbGw9IiNmZmYiLz48L3N2Zz4=';
 
   return (
     <div className="flex flex-col text-center group w-full card-flat snap-start">
       {/* Imagem com Arredondamento Suave e Tag */}
       <div 
-        className="relative w-full aspect-[4/5] rounded-xl overflow-hidden mb-6 cursor-pointer bg-muted/20" 
+        className="relative w-full aspect-square rounded-xl overflow-hidden mb-4 cursor-pointer bg-muted/20" 
         onClick={() => addToCart(product)}
       >
-        {product.limitedStock && (
-          <Badge className="absolute top-3 left-3 z-10 bg-secondary text-white rounded-full px-3 py-1 font-medium text-[9px] uppercase tracking-widest border-none">
-            Produção Limitada
-          </Badge>
-        )}
+        {/* Badge de estoque removida conforme solicitação */}
         <Image
           src={product.images[0]}
           alt={product.name}
           fill
-          className="object-cover transition-transform duration-700 group-hover:scale-105"
+          className="object-contain transition-transform duration-700 group-hover:scale-105"
           sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 80vw"
+          placeholder="blur"
+          blurDataURL={BLUR}
         />
       </div>
       

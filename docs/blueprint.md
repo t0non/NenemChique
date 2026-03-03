@@ -1,4 +1,4 @@
-# **App Name**: EnxovalNuvem
+# **App Name**: Neném Chique
 
 ## Core Features:
 

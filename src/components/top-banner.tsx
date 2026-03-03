@@ -1,28 +1,41 @@
 "use client"
 
-import { useState } from 'react';
-import { Copy, Check } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { Clock } from 'lucide-react';
+import { useData } from '@/context/data-context';
 
 export function TopBanner() {
-  const [copied, setCopied] = useState(false);
+  const [remaining, setRemaining] = useState(0);
+  const { settings } = useData();
+
+  const GROUP_LINK = "https://chat.whatsapp.com/SEU_LINK_DO_GRUPO";
   
-  const items = [
-    "FRETE GRÁTIS NAS COMPRAS ACIMA DE R$ 299",
-    "MONTE O ENXOVAL COMPLETO E GANHE O ENVIO",
-    "CONDIÇÃO ESPECIAL POR TEMPO LIMITADO",
-    "MAIS DE 2.000 MÃES JÁ APROVARAM"
-  ];
+  const items = settings?.marqueeItems || [];
+  const displayItems = useMemo(() => [...items, ...items, ...items], [items]);
 
-  const displayItems = [...items, ...items, ...items];
+  // Contagem regressiva baseada na data ou 2h padrão
+  useEffect(() => {
+    const promotionEnd = settings?.promotionCountdown ? new Date(settings.promotionCountdown).getTime() : Date.now() + 2 * 60 * 60 * 1000;
+    
+    const tick = () => {
+      const now = Date.now();
+      setRemaining(Math.max(0, promotionEnd - now));
+    };
 
-  const copyCoupon = () => {
-    navigator.clipboard.writeText("PRIMEIRACOMPRA");
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [settings?.promotionCountdown]);
+
+  const h = Math.floor(remaining / 3600000);
+  const m = Math.floor((remaining % 3600000) / 60000);
+  const s = Math.floor((remaining % 60000) / 1000);
+  const hh = String(h).padStart(2, '0');
+  const mm = String(m).padStart(2, '0');
+  const ss = String(s).padStart(2, '0');
 
   return (
-    <div className="sticky top-0 z-[1000] w-full shadow-sm">
+    <div className="sticky top-0 z-[1000] w-full shadow-sm overflow-hidden">
       {/* Marquee Principal */}
       <div className="bg-pink-gradient border-b border-white/10 py-3 overflow-hidden whitespace-nowrap">
         <div className="flex items-center animate-marquee">
@@ -39,34 +52,26 @@ export function TopBanner() {
         </div>
       </div>
 
-      {/* Barra de Cupom */}
+      {/* Barra de Oferta + Contagem regressiva */}
       <div className="bg-[#FDF2F4] border-b border-[#F7C1CD] py-2.5">
         <div className="container-standard flex flex-wrap items-center justify-center gap-4 text-center">
           <span className="text-[12px] font-light tracking-[1px] text-foreground/70 uppercase">
-            ✨ 10% OFF NA SUA ESTREIA! USE O CUPOM:
+            {settings?.promotionText || "✨ 10% OFF NA SUA ESTREIA! ENTRE NO GRUPO DO WHATSAPP E PEGUE O CUPOM NA DESCRIÇÃO."}
           </span>
-          <div className="flex items-center gap-3">
-            <div className="bg-white border border-dashed border-primary px-3 py-1 text-primary font-bold rounded-md text-[13px] tracking-wider">
-              PRIMEIRACOMPRA
-            </div>
-            <button 
-              onClick={copyCoupon}
-              className={`flex items-center gap-2 px-4 py-1.5 rounded-full text-[10px] font-bold transition-all duration-300 ${
-                copied ? 'bg-green-500 text-white' : 'bg-[#6CA0CF] text-white hover:opacity-90'
-              }`}
-            >
-              {copied ? (
-                <>
-                  <Check className="w-3 h-3" />
-                  COPIADO!
-                </>
-              ) : (
-                <>
-                  <Copy className="w-3 h-3" />
-                  COPIAR
-                </>
-              )}
-            </button>
+          <a
+            href={GROUP_LINK}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-4 py-1.5 rounded-full text-[10px] font-bold transition-all duration-300 bg-[#6CA0CF] text-white hover:opacity-90"
+          >
+            Entrar no Grupo
+          </a>
+
+          <div className="hidden md:flex items-center gap-2 ml-4 text-primary">
+            <Clock className="w-4 h-4" />
+            <span className="text-[12px] font-bold tracking-[0.1em]">
+              Termina em {hh}:{mm}:{ss}
+            </span>
           </div>
         </div>
       </div>

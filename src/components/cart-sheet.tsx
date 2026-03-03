@@ -2,6 +2,7 @@
 "use client"
 
 import { useCart } from '@/context/cart-context';
+import { useData } from '@/context/data-context';
 import { PRODUCTS } from '@/lib/data';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,26 +14,49 @@ import {
   SheetTrigger,
   SheetClose,
 } from "@/components/ui/sheet";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
 import { ShoppingCart, Trash2, ArrowRight, CheckCircle2, ChevronLeft, Sparkles, Tag, RotateCcw, ShieldCheck } from 'lucide-react';
 import Image from 'next/image';
 import { useState, useMemo } from 'react';
 import { WhatsAppIcon } from './whatsapp-icon';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/lib/supabase';
 
 export function CartSheet() {
   const { items, removeFromCart, subtotal, total, itemCount, addToCart, isCartOpen, setIsCartOpen, couponApplied, applyCoupon, discountAmount } = useCart();
   const [couponInput, setCouponInput] = useState("");
-  
+  const [confirmingDelete, setConfirmingDelete] = useState<string | null>(null);
+  const { products: allProducts } = useData();
+
   const SHIPPING_THRESHOLD = 300;
   const remainingForFreeShipping = Math.max(0, SHIPPING_THRESHOLD - subtotal);
   const progressPercentage = Math.min(100, (subtotal / SHIPPING_THRESHOLD) * 100);
 
-  const upsellProduct = PRODUCTS.find(p => p.id === 'p4') || PRODUCTS[3];
-  const isUpsellInCart = useMemo(() => items.some(item => item.id === upsellProduct.id), [items, upsellProduct.id]);
+  // Dynamic Upsell: find a product marked as isUpsell that is not in cart
+  const upsellProduct = useMemo(() => {
+    // Primeiro tenta achar um produto marcado como upsell no banco de dados
+    const dbUpsell = allProducts.find(p => p.isUpsell && !items.some(item => item.id === p.id));
+    if (dbUpsell) return dbUpsell;
+    
+    // Se não houver nenhum marcado, não retorna nada (evita produtos aleatórios)
+    return null;
+  }, [allProducts, items]);
+
+  const isUpsellInCart = useMemo(() => {
+    if (!upsellProduct) return true; // Se não tem produto, finge que já está no carrinho para esconder a seção
+    return items.some(item => item.id === upsellProduct.id);
+  }, [items, upsellProduct]);
 
   const handleAddUpsell = () => {
-    addToCart(upsellProduct);
+    if (upsellProduct) addToCart(upsellProduct);
   };
 
   const handleApplyCoupon = () => {
@@ -40,11 +64,26 @@ export function CartSheet() {
     setCouponInput("");
   };
 
-  const finalizeOrder = () => {
+  const { orderCode } = useCart();
+
+  const finalizeOrder = async () => {
     const telefoneLoja = "5531999384130";
     
+    // 1. Atualizar status para 'pending_payment' no banco antes de enviar pro WhatsApp
+    try {
+      if (orderCode) {
+        await supabase
+          .from('orders')
+          .update({ status: 'pending_payment', updated_at: new Date().toISOString() })
+          .eq('order_code', orderCode);
+      }
+    } catch (e) {
+      console.error('Erro ao atualizar status do pedido:', e);
+    }
+
     // Início da Mensagem com tom acolhedor
-    let message = "✨ *NOVO PEDIDO - ENXOVAL NUVEM* ✨\n\n";
+    let message = "✨ *NOVO PEDIDO - NENÉM CHIQUE* ✨\n\n";
+    message += `🆔 *CÓDIGO: ${orderCode || 'S/N'}*\n`;
     message += "Olá! Gostaria de finalizar meu enxoval com vocês. ☁️🍼\n\n";
     
     message += "🛍️ *ITENS DO MEU CARRINHO:*\n";
@@ -89,7 +128,7 @@ export function CartSheet() {
           )}
         </Button>
       </SheetTrigger>
-      <SheetContent className="w-full sm:max-w-md flex flex-col p-0 border-l-primary/10">
+      <SheetContent side="right" className="w-[80vw] sm:max-w-md flex flex-col p-0 border-l-primary/10 rounded-l-2xl">
         <SheetHeader className="p-4 border-b bg-white flex flex-row items-center gap-4 space-y-0">
           <SheetClose asChild>
             <Button variant="ghost" size="sm" className="h-8 px-2 text-muted-foreground gap-1">
@@ -137,8 +176,8 @@ export function CartSheet() {
             <div className="space-y-3">
               {items.map((item) => (
                 <div key={item.id} className="flex gap-4 bg-white p-3 rounded-2xl shadow-sm border border-primary/5">
-                  <div className="relative w-16 h-20 rounded-xl overflow-hidden shrink-0 border border-muted">
-                    <Image src={item.images[0]} alt={item.name} fill className="object-cover" sizes="64px" />
+                  <div className="relative w-16 h-20 rounded-xl overflow-hidden shrink-0 border border-muted bg-muted/10">
+                    <Image src={item.images[0]} alt={item.name} fill className="object-contain" sizes="64px" />
                   </div>
                   <div className="flex-grow flex flex-col justify-between py-0.5">
                     <div>
@@ -147,14 +186,39 @@ export function CartSheet() {
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-xs font-bold text-muted-foreground bg-muted/50 px-2 py-0.5 rounded-md">Qtd: {item.quantity}</span>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="h-7 w-7 text-muted-foreground hover:text-red-500 hover:bg-red-50 rounded-lg"
-                        onClick={() => removeFromCart(item.id)}
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </Button>
+                      
+                      {confirmingDelete === item.id ? (
+                        <div className="flex items-center gap-1.5 bg-red-50/50 p-1 rounded-lg animate-in fade-in slide-in-from-right-2">
+                          <span className="text-[10px] font-bold text-red-500 ml-1">Excluir?</span>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="h-6 px-2 text-[10px] font-bold hover:bg-white text-muted-foreground"
+                            onClick={() => setConfirmingDelete(null)}
+                          >
+                            Não
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            className="h-6 px-2 text-[10px] font-bold bg-red-500 hover:bg-red-600 text-white border-none"
+                            onClick={() => {
+                              removeFromCart(item.id);
+                              setConfirmingDelete(null);
+                            }}
+                          >
+                            Sim
+                          </Button>
+                        </div>
+                      ) : (
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-7 w-7 text-muted-foreground hover:text-red-500 hover:bg-red-50 rounded-lg"
+                          onClick={() => setConfirmingDelete(item.id)}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -164,17 +228,78 @@ export function CartSheet() {
         </div>
 
         {/* Rodapé e Cupom */}
-        <div className="p-6 bg-white border-t flex flex-col gap-4">
+        <div className="p-6 bg-white border-t flex flex-col gap-4 shrink-0">
           {/* Campo de Cupom */}
           {items.length > 0 && !couponApplied && (
-            <div className="flex gap-2 w-full">
-              <Input 
-                placeholder="Tem um cupom?" 
-                value={couponInput}
-                onChange={(e) => setCouponInput(e.target.value)}
-                className="h-10 rounded-xl text-xs flex-1"
-              />
-              <Button onClick={handleApplyCoupon} className="h-10 px-4 rounded-xl text-xs font-bold shrink-0">Aplicar</Button>
+            <div className="space-y-3">
+              <div className="flex justify-end px-1">
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <button className="text-[10px] font-black text-primary uppercase tracking-widest hover:underline flex items-center gap-1.5 group">
+                      <Sparkles className="w-3 h-3 group-hover:animate-pulse" />
+                      Cupom Aqui?
+                    </button>
+                  </DialogTrigger>
+                  <DialogContent className="w-[90vw] max-w-[380px] rounded-[32px] p-0 overflow-hidden border-none shadow-2xl z-[1002]">
+                    <div className="bg-pink-gradient p-8 text-white text-center space-y-4">
+                      <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto backdrop-blur-sm">
+                        <Tag className="w-8 h-8 text-white" />
+                      </div>
+                      <DialogHeader>
+                        <DialogTitle className="text-2xl font-black text-white leading-tight">
+                          QUER UM CUPOM <br/> EXCLUSIVO? 🎁
+                        </DialogTitle>
+                      </DialogHeader>
+                      <p className="text-white/90 text-sm font-medium leading-relaxed">
+                        Participe do nosso grupo VIP de mamães! O cupom de primeira compra está fixado na <b>descrição do grupo</b>.
+                      </p>
+                    </div>
+                    
+                    <div className="p-6 bg-white space-y-4">
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-2xl border border-blue-100">
+                          <div className="w-8 h-8 bg-white rounded-xl flex items-center justify-center shadow-sm">
+                            <span className="text-blue-600 font-bold text-xs">1</span>
+                          </div>
+                          <p className="text-[11px] font-bold text-blue-900">Clique no botão abaixo</p>
+                        </div>
+                        <div className="flex items-center gap-3 p-3 bg-pink-50 rounded-2xl border border-pink-100">
+                          <div className="w-8 h-8 bg-white rounded-xl flex items-center justify-center shadow-sm">
+                            <span className="text-pink-600 font-bold text-xs">2</span>
+                          </div>
+                          <p className="text-[11px] font-bold text-pink-900">Leia a descrição do grupo</p>
+                        </div>
+                        <div className="flex items-center gap-3 p-3 bg-green-50 rounded-2xl border border-green-100">
+                          <div className="w-8 h-8 bg-white rounded-xl flex items-center justify-center shadow-sm">
+                            <span className="text-green-600 font-bold text-xs">3</span>
+                          </div>
+                          <p className="text-[11px] font-bold text-green-900">Copie o código e use aqui!</p>
+                        </div>
+                      </div>
+
+                      <Button asChild className="w-full h-12 rounded-2xl bg-[#25D366] hover:bg-[#128C7E] text-white font-black text-sm gap-2 shadow-lg shadow-green-100 border-none">
+                        <a href="https://chat.whatsapp.com/SEU_LINK_AQUI" target="_blank" rel="noopener noreferrer">
+                          <WhatsAppIcon className="w-4 h-4 fill-white" />
+                          ENTRAR NO GRUPO VIP
+                        </a>
+                      </Button>
+                      
+                      <p className="text-[10px] text-center text-muted-foreground font-medium uppercase tracking-widest">
+                        Ofertas exclusivas todos os dias ☁️
+                      </p>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              </div>
+              <div className="flex gap-2 w-full">
+                <Input 
+                  placeholder="Tem um cupom?" 
+                  value={couponInput}
+                  onChange={(e) => setCouponInput(e.target.value)}
+                  className="h-10 rounded-xl text-xs flex-1"
+                />
+                <Button onClick={handleApplyCoupon} className="h-10 px-4 rounded-xl text-xs font-bold shrink-0">Aplicar</Button>
+              </div>
             </div>
           )}
 
@@ -188,15 +313,15 @@ export function CartSheet() {
             </div>
           )}
 
-          {!isUpsellInCart && items.length > 0 && (
+          {!isUpsellInCart && items.length > 0 && upsellProduct && (
             <div className="mb-2 bg-[#F9FBFF] border-2 border-dashed border-primary/20 rounded-3xl p-4 relative overflow-hidden w-full">
                <div className="mb-3 flex items-center gap-2">
                  <Sparkles className="w-3 h-3 text-primary" />
                  <p className="text-[10px] font-black uppercase tracking-widest text-primary/60">Mães também levam:</p>
                </div>
                <div className="flex gap-4 items-center">
-                 <div className="relative w-14 h-14 rounded-xl overflow-hidden shrink-0 shadow-sm border border-white">
-                   <Image src={upsellProduct.images[0]} alt={upsellProduct.name} fill className="object-cover" />
+                 <div className="relative w-14 h-14 rounded-xl overflow-hidden shrink-0 shadow-sm border border-white bg-white/50">
+                   <Image src={upsellProduct.images[0]} alt={upsellProduct.name} fill className="object-contain" />
                  </div>
                  <div className="flex-grow">
                     <h5 className="font-bold text-xs leading-tight mb-1">{upsellProduct.name}</h5>
