@@ -1,7 +1,7 @@
 
 "use client"
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { ProductCard } from '@/components/product-card';
 import { CATEGORIES } from '@/lib/data';
@@ -10,7 +10,7 @@ import { ListFilter, Loader2 } from 'lucide-react';
 import { useData } from '@/context/data-context';
 import { Product } from '@/lib/types';
 
-export default function CatalogPage() {
+function CatalogInner() {
   const { products, isLoading: loading } = useData();
   const searchParams = useSearchParams();
   const initialCategory = searchParams.get('category') || 'all';
@@ -238,5 +238,22 @@ export default function CatalogPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function CatalogPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="py-16 bg-background min-h-[60vh] flex items-center justify-center">
+          <div className="flex flex-col items-center gap-3 text-muted-foreground">
+            <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            <p className="text-sm">Carregando catálogo...</p>
+          </div>
+        </div>
+      }
+    >
+      <CatalogInner />
+    </Suspense>
   );
 }
