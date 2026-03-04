@@ -27,7 +27,7 @@ export function InstagramSection() {
             
             <div className="flex flex-col sm:flex-row gap-4 pt-4">
               <Button asChild size="lg" className="h-14 px-8 rounded-full bg-pink-gradient hover:opacity-90 text-white font-bold border-none shadow-xl shadow-primary/20 group">
-                <a href="https://instagram.com/nenemchique" target="_blank" rel="noopener noreferrer" className="flex items-center gap-3">
+                <a href="https://www.instagram.com/nenemchiquee/" target="_blank" rel="noopener noreferrer" className="flex items-center gap-3">
                   <Instagram className="w-5 h-5 group-hover:scale-110 transition-transform" />
                   Seguir no Instagram
                 </a>

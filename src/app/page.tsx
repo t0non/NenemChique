@@ -51,6 +51,26 @@ export default function Home() {
   const heroImage = settings?.heroImageUrl || PlaceHolderImages.find(img => img.id === 'hero-baby')?.imageUrl;
   const checklistImage = PlaceHolderImages.find(img => img.id === 'checklist-layette');
 
+  const calcularRota = () => {
+    const destino = 'Av. Visc. de Ibituruna, 370A - Barreiro, Belo Horizonte - MG, 30640-080';
+    const abrirDirecoes = (origem?: string) => {
+      const url = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destino)}${origem ? `&origin=${encodeURIComponent(origem)}` : ''}`;
+      window.open(url, '_blank');
+    };
+    if (typeof navigator !== 'undefined' && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const origem = `${pos.coords.latitude},${pos.coords.longitude}`;
+          abrirDirecoes(origem);
+        },
+        () => abrirDirecoes(),
+        { enableHighAccuracy: true, timeout: 8000, maximumAge: 30000 }
+      );
+    } else {
+      abrirDirecoes();
+    }
+  };
+
   const Section = ({ title, description, products, id, badgeText }: { title: string, description: string, products: any[], id?: string, badgeText?: string }) => (
     <section id={id} className="py-8 bg-white first-of-type:bg-[#FDF8FB] even:bg-[#FDF8FB]">
       <div className="container-standard">
@@ -103,14 +123,14 @@ export default function Home() {
             </p>
             <div className="flex flex-col sm:flex-row gap-3">
               <Button asChild size="lg" className="h-12 px-8 rounded-full text-xs font-bold bg-pink-gradient hover:opacity-90 text-white border-none uppercase tracking-widest">
-                <Link href="/catalog">
+                <Link href="/catalog" prefetch={false}>
                   Ver Coleção Completa
                 </Link>
               </Button>
             </div>
           </div>
           
-          <div className="relative w-full rounded-2xl overflow-hidden bg-muted/10 hidden lg:block lg:max-w-[420px] justify-self-center border-4 border-white shadow-xl mx-auto mt-4 lg:mt-0 lg:h-auto lg:aspect-square">
+          <div className="relative w-full rounded-2xl overflow-hidden bg-muted/10 hidden lg:block lg:max-w-[420px] justify-self-center border-4 border-white shadow-xl mx-auto mt-4 lg:mt-0 lg:h-auto lg:aspect-square lg:-ml-3">
              <Image 
                 src={heroImage || "https://picsum.photos/seed/baby1/800/800"} 
                 alt="Bebê com roupinha delicada" 
@@ -202,6 +222,9 @@ export default function Home() {
               <div className="mt-4">
                 <Button asChild className="rounded-full">
                   <a href="https://wa.me/5531999384130" target="_blank" rel="noopener noreferrer">Agendar retirada</a>
+                </Button>
+                <Button onClick={calcularRota} className="rounded-full ml-2">
+                  Calcular rota até a loja
                 </Button>
               </div>
             </div>

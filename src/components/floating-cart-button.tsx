@@ -8,7 +8,7 @@ export function FloatingCartButton() {
   const { itemCount, setIsCartOpen } = useCart();
   return (
     <div
-      className="fixed z-[40] right-2 bottom-24 md:right-2 md:bottom-24"
+      className="fixed z-[40] right-2 bottom-6 md:right-2 md:bottom-8"
       style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
     >
       <Button

@@ -34,7 +34,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="pt-BR" className={`scroll-smooth ${instrumentSans.variable}`}>
+    <html lang="pt-BR" className={`scroll-smooth overflow-x-hidden ${instrumentSans.variable}`}>
       <head>
         <link rel="preconnect" href="https://pkparxozauwbpckwplht.supabase.co" />
         <link rel="preconnect" href="https://picsum.photos" />

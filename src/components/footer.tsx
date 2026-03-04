@@ -7,17 +7,11 @@ import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import logo from '@/imagens/logo.png';
-import { WhatsAppIcon } from '@/components/whatsapp-icon';
 
 export function Footer() {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
-  const [showTyping, setShowTyping] = useState(false);
-  const [showMessage, setShowMessage] = useState(false);
-  const [showTyping2, setShowTyping2] = useState(false);
-  const [showMessage2, setShowMessage2] = useState(false);
-  const [dismissed, setDismissed] = useState(false);
 
   const handleNewsletter = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,33 +38,6 @@ export function Footer() {
       element.scrollIntoView({ behavior: 'smooth' });
     }
   };
-
-  useEffect(() => {
-    const t1 = setTimeout(() => {
-      if (!dismissed) setShowTyping(true);
-    }, 3000);
-    const t2 = setTimeout(() => {
-      if (!dismissed) {
-        setShowTyping(false);
-        setShowMessage(true);
-      }
-    }, 4300);
-    const t3 = setTimeout(() => {
-      if (!dismissed) setShowTyping2(true);
-    }, 6000);
-    const t4 = setTimeout(() => {
-      if (!dismissed) {
-        setShowTyping2(false);
-        setShowMessage2(true);
-      }
-    }, 7600);
-    return () => {
-      clearTimeout(t1);
-      clearTimeout(t2);
-      clearTimeout(t3);
-      clearTimeout(t4);
-    };
-  }, [dismissed]);
 
   return (
     <footer className="bg-white border-t border-primary/5 py-24">
@@ -160,84 +127,6 @@ export function Footer() {
             © {new Date().getFullYear()} Neném Chique. Todos os direitos reservados.
           </p>
         </div>
-      </div>
-      <div className="fixed bottom-4 right-2 z-50">
-        {!dismissed && (
-          <div className="absolute right-full mr-2 top-1/2 -translate-y-1/2 flex flex-col items-end gap-1.5 pointer-events-none">
-            {showTyping && !showMessage && (
-              <div className="relative bg-white px-2 py-1 rounded-xl shadow-xl border border-primary/10 w-12 flex items-center justify-center pointer-events-auto">
-                <div className="flex gap-0.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/50 animate-bounce" style={{ animationDelay: '0ms' }} />
-                  <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/50 animate-bounce" style={{ animationDelay: '120ms' }} />
-                  <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/50 animate-bounce" style={{ animationDelay: '240ms' }} />
-                </div>
-                <div className="absolute right-[-5px] top-1/2 -translate-y-1/2 w-2.5 h-2.5 bg-white border-t border-r border-primary/10 rotate-45" />
-              </div>
-            )}
-            {showMessage && (
-              <div className="relative inline-block w-fit bg-white p-2 rounded-xl shadow-xl border border-primary/10 animate-in fade-in duration-200 pointer-events-auto">
-                <div className="flex items-start gap-2">
-                  <div className="flex-1">
-                    <div className="text-[8px] font-black text-foreground/60 uppercase tracking-[0.18em] leading-none mb-1">Taynara</div>
-                    <p className="text-[11px] text-foreground/90 leading-snug">Olá! Tudo bem?</p>
-                  </div>
-                  <button
-                    aria-label="Fechar"
-                    onClick={() => setDismissed(true)}
-                    className="text-muted-foreground/60 hover:text-foreground transition-colors text-xs font-bold"
-                  >
-                    ×
-                  </button>
-                </div>
-                <div className="absolute right-[-6px] top-1/2 -translate-y-1/2 w-3 h-3 bg-white border-t border-r border-primary/10 rotate-45" />
-              </div>
-            )}
-            {showTyping2 && !showMessage2 && (
-              <div className="relative bg-white px-2 py-1 rounded-xl shadow-xl border border-primary/10 w-12 flex items-center justify-center pointer-events-auto">
-                <div className="flex gap-0.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/50 animate-bounce" style={{ animationDelay: '0ms' }} />
-                  <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/50 animate-bounce" style={{ animationDelay: '120ms' }} />
-                  <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/50 animate-bounce" style={{ animationDelay: '240ms' }} />
-                </div>
-                <div className="absolute right-[-5px] top-1/2 -translate-y-1/2 w-2.5 h-2.5 bg-white border-t border-r border-primary/10 rotate-45" />
-              </div>
-            )}
-            {showMessage2 && (
-              <div className="relative inline-block w-fit bg-white p-2 rounded-xl shadow-xl border border-primary/10 animate-in fade-in duration-200 pointer-events-auto">
-                <div className="flex items-start gap-2">
-                  <div className="flex-1">
-                    <div className="text-[8px] font-black text-foreground/60 uppercase tracking-[0.18em] leading-none mb-1">Taynara</div>
-                    <p className="text-[11px] text-foreground/90 leading-snug mb-2">Posso ajudar a montar seu enxoval? 💗</p>
-                    <a
-                      href="https://wa.me/5531999384130?text=Ol%C3%A1%2C%20quero%20ver%20a%20cole%C3%A7%C3%A3o%20:%29"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 bg-emerald-500 hover:bg-emerald-600 text-white px-2 py-1.5 rounded-lg text-[10px] font-bold shadow-md whitespace-nowrap"
-                    >
-                      Quero ver coleção <Send className="w-3 h-3" />
-                    </a>
-                  </div>
-                  <button
-                    aria-label="Fechar"
-                    onClick={() => setDismissed(true)}
-                    className="text-muted-foreground/60 hover:text-foreground transition-colors text-xs font-bold"
-                  >
-                    ×
-                  </button>
-                </div>
-                <div className="absolute right-[-6px] top-1/2 -translate-y-1/2 w-3 h-3 bg-white border-t border-r border-primary/10 rotate-45" />
-              </div>
-            )}
-          </div>
-        )}
-        <a
-          href="https://wa.me/5531999384130"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center justify-center bg-gradient-to-br from-emerald-500 to-green-500 hover:from-emerald-500 hover:to-green-600 text-white rounded-full h-14 w-14 shadow-xl shadow-emerald-300/40 ring-1 ring-white/40 ring-offset-2 ring-offset-emerald-100 transition-transform duration-200 ease-out hover:scale-105 active:scale-95"
-        >
-          <WhatsAppIcon className="w-8 h-8 fill-white" />
-        </a>
       </div>
     </footer>
   );

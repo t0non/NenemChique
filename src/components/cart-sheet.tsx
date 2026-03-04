@@ -106,22 +106,9 @@ export function CartSheet() {
     }
   };
 
-  const finalizeOrder = async () => {
+  const finalizeOrder = () => {
     const telefoneLoja = "5531999384130";
-    
-    // 1. Atualizar status para 'pending_payment' no banco antes de enviar pro WhatsApp
-    try {
-      if (orderCode) {
-        await supabase
-          .from('orders')
-          .update({ status: 'pending_payment', updated_at: new Date().toISOString() })
-          .eq('order_code', orderCode);
-      }
-    } catch (e) {
-      console.error('Erro ao atualizar status do pedido:', e);
-    }
 
-    // Início da Mensagem com tom acolhedor
     let message = "🎀 *NOVO PEDIDO - NENÉM CHIQUE* 🎀\n";
     message += `📦 Pedido: *${orderCode || 'S/N'}*\n`;
     message += "------------------------------------\n";
@@ -157,8 +144,9 @@ export function CartSheet() {
     message += `💰 *Total:* R$ ${totalFormatado}\n\n`;
     message += "📨 Aguardo o link para pagamento e previsão de entrega. Obrigado! 💗";
     
-    const encodedMessage = encodeURIComponent(message);
-    window.open(`https://wa.me/${telefoneLoja}?text=${encodedMessage}`, '_blank');
+    const encodedMessage = encodeURIComponent(message.normalize('NFC'));
+    const url = `https://wa.me/${telefoneLoja}?text=${encodedMessage}`;
+    window.location.href = url;
   };
 
   return (
@@ -173,7 +161,7 @@ export function CartSheet() {
           )}
         </Button>
       </SheetTrigger>
-      <SheetContent side="right" className="w-[380px] max-w-[92vw] h-[100dvh] md:h-screen flex flex-col p-0 border-l-primary/10 rounded-l-2xl z-[1002]">
+      <SheetContent side="right" className="w-[380px] max-w-[92vw] h-[100dvh] md:h-screen flex flex-col p-0 border-l-primary/10 rounded-l-2xl">
         <SheetHeader className="p-4 border-b bg-white flex items-center justify-between space-y-0">
           <SheetClose asChild>
             <Button variant="ghost" size="sm" className="h-8 px-2 text-muted-foreground gap-1">
@@ -286,7 +274,7 @@ export function CartSheet() {
                       Cupom Aqui
                     </button>
                   </DialogTrigger>
-                  <DialogContent className="w-[92vw] max-w-[360px] rounded-2xl p-0 overflow-hidden border-none shadow-2xl z-[1002]">
+                  <DialogContent className="w-[92vw] max-w-[360px] rounded-2xl p-0 overflow-hidden border-none shadow-2xl">
                     <div className="bg-pink-gradient p-6 text-white text-center space-y-2">
                       <DialogHeader>
                         <DialogTitle className="text-xl font-black text-white leading-tight">
