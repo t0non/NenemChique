@@ -3,7 +3,8 @@ import { Product, Category, Testimonial } from './types';
 
 export const CATEGORIES: Category[] = [
   { id: '1', name: 'Saída de Maternidade', slug: 'saida-maternidade' },
-  { id: '2', name: 'Bodies & Macacões', slug: 'bodies' },
+  { id: '2', name: 'Macacões', slug: 'macacoes' },
+  { id: '5', name: 'Bodies', slug: 'bodies' },
   { id: '3', name: 'Sapatinhos', slug: 'sapatinhos' },
   { id: '4', name: 'Kits Enxoval', slug: 'kits' },
 ];
@@ -42,7 +43,7 @@ const baseProducts: Product[] = [
     name: 'Macacão Ursinho Soft',
     description: 'Ideal para dias mais frios, com toque aveludado e proteção para o bebê.',
     price: 89.90,
-    category: 'bodies',
+    category: 'macacoes',
     images: ['https://picsum.photos/seed/macacao-ursinho-soft/800/1000'],
     limitedStock: false,
   },
@@ -94,7 +95,7 @@ const baseProducts: Product[] = [
   }
 ];
 
-function padCategory(items: Product[], category: string, baseName: string, baseId: string, basePrice: number): Product[] {
+function padCategory(items: Product[], category: string, baseName: string, baseId: string, basePrice: number, promoBase?: number): Product[] {
   const list = items.filter(p => p.category === category);
   const result = [...items];
   let i = list.length;
@@ -110,6 +111,7 @@ function padCategory(items: Product[], category: string, baseName: string, baseI
       images: [`https://picsum.photos/seed/${baseId}-${idx}/800/1000`],
       limitedStock: idx % 3 === 0,
       stockCount: idx % 3 === 0 ? 5 + idx : undefined,
+      promoPrice: promoBase !== undefined ? promoBase : undefined,
     });
     i++;
   }
@@ -118,7 +120,8 @@ function padCategory(items: Product[], category: string, baseName: string, baseI
 
 let PRODUCTS_WORK = [...baseProducts];
 PRODUCTS_WORK = padCategory(PRODUCTS_WORK, 'saida-maternidade', 'Saída de Maternidade Tricot', 'saida', 179);
-PRODUCTS_WORK = padCategory(PRODUCTS_WORK, 'bodies', 'Body Algodão', 'body', 39);
+PRODUCTS_WORK = padCategory(PRODUCTS_WORK, 'bodies', 'Body Algodão', 'body', 29, 15);
+PRODUCTS_WORK = padCategory(PRODUCTS_WORK, 'macacoes', 'Macacão Algodão', 'macacao', 79);
 PRODUCTS_WORK = padCategory(PRODUCTS_WORK, 'sapatinhos', 'Sapatinho Tricot', 'sapatinho', 29);
 PRODUCTS_WORK = padCategory(PRODUCTS_WORK, 'kits', 'Kit Enxoval', 'kit', 199);
 

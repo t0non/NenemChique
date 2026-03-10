@@ -167,6 +167,13 @@ BEGIN
     ) THEN
       ALTER TABLE products ADD COLUMN colors text[] DEFAULT '{}';
     END IF;
+    IF NOT EXISTS (
+      SELECT 1 
+      FROM information_schema.columns 
+      WHERE table_name = 'products' AND column_name = 'sizes'
+    ) THEN
+      ALTER TABLE products ADD COLUMN sizes text[] DEFAULT '{}';
+    END IF;
   END IF;
 END
 $$;

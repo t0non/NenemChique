@@ -18,6 +18,10 @@
     --muted-foreground: 215 14% 46%;
     --accent: 34 32% 64%;
     --accent-foreground: 215 25% 27%;
+    --cream: 50 90% 92%;
+    --cream-foreground: 215 25% 27%;
+    --brown: 24 35% 35%;
+    --brown-foreground: 0 0% 100%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
     --border: 220 13% 91%;

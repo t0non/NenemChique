@@ -67,7 +67,7 @@ export function InstagramSection() {
             </div>
 
             {/* Elemento flutuante */}
-            <div className="absolute -bottom-6 -left-6 bg-white p-4 rounded-2xl shadow-xl border border-primary/5 hidden md:block animate-bounce duration-[3000ms]">
+            <div className="absolute -bottom-6 -left-6 bg-white p-4 rounded-2xl shadow-xl border border-primary/5 hidden md:block animate-bounce [animation-duration:3000ms]">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-green-50 flex items-center justify-center">
                    <Heart className="w-5 h-5 text-red-400 fill-red-400" />

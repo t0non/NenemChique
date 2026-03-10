@@ -8,10 +8,10 @@ const nextConfig: NextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
+  output: 'export',
   images: {
-    // Evita logs de net::ERR_ABORTED em desenvolvimento ao cancelar otimizações
-    // Mantém otimização em produção
-    unoptimized: process.env.NODE_ENV !== 'production',
+    // Para static export, desabilitamos a otimização de imagens do Next
+    unoptimized: true,
     formats: ['image/avif', 'image/webp'],
     remotePatterns: [
       {

@@ -19,3 +19,4 @@ export async function GET() {
     return NextResponse.json({ files: [] })
   }
 }
+export const dynamic = 'force-static'

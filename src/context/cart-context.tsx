@@ -64,11 +64,11 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   // Sincronizar carrinho com o banco de dados (Tabela de Orders)
   const syncCartWithDB = async () => {
     const isLogged = typeof window !== 'undefined' && localStorage.getItem('nenem_is_logged') === 'true';
-    if (!isLogged || items.length === 0) return;
+    if (items.length === 0) return;
 
-    const userId = localStorage.getItem('nenem_user_id');
-    const userName = localStorage.getItem('nenem_user_name');
-    const userPhone = localStorage.getItem('nenem_user_phone');
+    const userId = isLogged ? localStorage.getItem('nenem_user_id') : null;
+    const userName = isLogged ? (localStorage.getItem('nenem_user_name') || '') : 'SEM LOGIN';
+    const userPhone = isLogged ? (localStorage.getItem('nenem_user_phone') || '') : '';
     
     let currentOrderCode = orderCode;
     if (!currentOrderCode) {

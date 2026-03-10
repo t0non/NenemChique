@@ -4,20 +4,20 @@
 import { useState, useEffect, useMemo, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { ProductCard } from '@/components/product-card';
-import { CATEGORIES } from '@/lib/data';
 import { Button } from '@/components/ui/button';
 import { ListFilter, Loader2 } from 'lucide-react';
 import { useData } from '@/context/data-context';
 import { Product } from '@/lib/types';
 
 function CatalogInner() {
-  const { products, isLoading: loading } = useData();
+  const { products, isLoading: loading, categories } = useData();
   const searchParams = useSearchParams();
   const initialCategory = searchParams.get('category') || 'all';
   const [activeCategory, setActiveCategory] = useState(initialCategory);
   const [genderFilter, setGenderFilter] = useState<'all' | 'masculino' | 'feminino' | 'unisex'>('all');
   const [selectedColors, setSelectedColors] = useState<string[]>([]);
   const [sortBy, setSortBy] = useState<'destaque'|'menor-preco'|'maior-preco'|'novidades'>('destaque');
+  const [showFilters, setShowFilters] = useState(false);
 
   useEffect(() => {
     setActiveCategory(searchParams.get('category') || 'all');
@@ -90,13 +90,91 @@ function CatalogInner() {
       <div className="container mx-auto px-4">
         <div className="mb-6">
           <h1 className="text-3xl font-bold mb-2 text-primary">
-            {activeCategory === 'all' ? 'Nossa Coleção' : (CATEGORIES.find(c => c.slug === activeCategory)?.name || 'Coleção')}
+            {activeCategory === 'all' ? 'Nossa Coleção' : (categories.find((c) => c.slug === activeCategory)?.name || 'Coleção')}
           </h1>
           <p className="text-muted-foreground text-base italic">Navegue pelas categorias, filtre e ordene como preferir.</p>
         </div>
 
-        <div className="flex flex-col lg:flex-row gap-8">
-          <aside className="w-full lg:w-72 space-y-6">
+        <div className="flex flex-col lg:flex-row gap-6">
+          {/* Mobile categories bar */}
+          <div className="lg:hidden space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Categorias</span>
+              <Button variant="outline" className="rounded-full h-9 text-xs" onClick={() => setShowFilters(v => !v)}>
+                {showFilters ? 'Ocultar filtros' : 'Mostrar filtros'}
+              </Button>
+            </div>
+            <div className="flex gap-2 overflow-x-auto py-1">
+              <Button 
+                variant={activeCategory === 'all' ? 'default' : 'ghost'} 
+                className={`rounded-full h-9 px-3 whitespace-nowrap ${activeCategory === 'all' ? 'shadow-md shadow-primary/10' : ''}`}
+                onClick={() => setActiveCategory('all')}
+              >
+                Todos
+              </Button>
+              {categories.filter(cat => products.some(p => p.category === cat.slug)).map((cat) => (
+                <Button
+                  key={cat.id}
+                  variant={activeCategory === cat.slug ? 'default' : 'ghost'}
+                  className={`rounded-full h-9 px-3 whitespace-nowrap ${activeCategory === cat.slug ? 'shadow-md shadow-primary/10' : ''}`}
+                  onClick={() => setActiveCategory(cat.slug)}
+                >
+                  {cat.name}
+                </Button>
+              ))}
+            </div>
+            {showFilters && (
+              <div className="space-y-3 bg-white rounded-2xl border p-3">
+                {colorCounts.length > 0 && (
+                  <div className="space-y-2">
+                    <h4 className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Cor</h4>
+                    <div className="max-h-36 overflow-auto">
+                      {colorCounts.map(([key, info]) => {
+                        const label = info.label;
+                        const isSel = selectedColors.includes(label);
+                        return (
+                          <label key={key} className="flex items-center justify-between gap-2 py-1 text-sm">
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="checkbox"
+                                checked={isSel}
+                                onChange={(e) => {
+                                  if (e.target.checked) setSelectedColors(prev => [...prev, label]);
+                                  else setSelectedColors(prev => prev.filter(x => x !== label));
+                                }}
+                              />
+                              <span className="text-muted-foreground">{label}</span>
+                            </div>
+                            <span className="text-[10px] font-bold text-primary/70">{info.count}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                    <Button variant="outline" className="rounded-full h-9 text-xs" onClick={() => setSelectedColors([])}>
+                      Limpar Cor
+                    </Button>
+                  </div>
+                )}
+                <div className="space-y-2">
+                  <h4 className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Gênero</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {(['all','feminino','masculino','unisex'] as const).map(g => (
+                      <Button
+                        key={g}
+                        variant={genderFilter === g ? 'default' : 'ghost'}
+                        className="rounded-full h-9 px-3 text-xs"
+                        onClick={() => setGenderFilter(g)}
+                      >
+                        {g === 'all' ? 'Todos' : g.charAt(0).toUpperCase()+g.slice(1)}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+          
+          <aside className="hidden lg:block w-full lg:w-72 space-y-6">
             <div className="space-y-4">
               <h3 className="font-bold flex items-center gap-2 text-foreground uppercase tracking-wider text-xs">
                 <ListFilter className="w-4 h-4" />
@@ -110,7 +188,9 @@ function CatalogInner() {
                 >
                   Todos
                 </Button>
-                {CATEGORIES.map((cat) => (
+                {categories
+                  .filter((cat) => products.some((p) => p.category === cat.slug))
+                  .map((cat) => (
                   <Button 
                     key={cat.id} 
                     variant={activeCategory === cat.slug ? 'default' : 'ghost'} 

@@ -40,13 +40,17 @@ const VaralzinhoDivider = dynamic(() => Promise.resolve(() => (
 
 export default function Home() {
   const { items, addToCart, removeFromCart, subtotal } = useCart();
-  const { products, settings } = useData();
+  const { products, settings, categories } = useData();
 
-  const bestSellers = products.slice(0, 4);
+  const bestSellers = products
+    .filter(p => p.isBestSeller)
+    .sort((a, b) => (a.bestSellerRank ?? 999) - (b.bestSellerRank ?? 999))
+    .slice(0, 8);
   const saidasMaternidade = products.filter(p => p.category === 'saida-maternidade');
   const bodies = products.filter(p => p.category === 'bodies');
   const sapatinhos = products.filter(p => p.category === 'sapatinhos');
   const kits = products.filter(p => p.category === 'kits');
+  const kitsHigiene = products.filter(p => p.category === 'kits-higiene');
 
   const heroImage = settings?.heroImageUrl || PlaceHolderImages.find(img => img.id === 'hero-baby')?.imageUrl;
   const checklistImage = PlaceHolderImages.find(img => img.id === 'checklist-layette');
@@ -84,9 +88,9 @@ export default function Home() {
             opts={{ align: 'start', loop: false }}
             className="w-full"
           >
-            <CarouselContent>
+            <CarouselContent className="pr-6">
               {products.map((p, idx) => (
-                <CarouselItem key={p.id} className="basis-1/2 sm:basis-1/2 lg:basis-1/4">
+                <CarouselItem key={p.id} className="basis-[46%] sm:basis-[40%] lg:basis-[23%]">
                   <ProductCard product={p} />
                 </CarouselItem>
               ))}
@@ -149,6 +153,43 @@ export default function Home() {
       <HeroSlider />
       <VaralzinhoDivider />
 
+      <section className="py-8 bg-[#FDF8FB]">
+        <div className="container-standard">
+          <div className="max-w-2xl mx-auto mb-6 text-center">
+            <Badge className="bg-primary/10 text-primary border-none mb-2 px-4 py-1">Navegue</Badge>
+            <h2 className="text-2xl md:text-4xl font-light mb-1">Categorias</h2>
+            <p className="text-muted-foreground font-light text-sm italic">Principais coleções para começar a explorar.</p>
+          </div>
+          <div className="space-y-3">
+            <div className="lg:hidden flex gap-2 overflow-x-auto pb-1">
+              {categories
+                .filter(c => products.some(p => p.category === c.slug))
+                .map((cat) => (
+                  <Link key={cat.id} href={`/catalog?category=${encodeURIComponent(cat.slug)}`} prefetch={false} className="rounded-full border border-primary/10 bg-white shadow-sm hover:bg-primary hover:text-white transition-colors px-4 h-9 flex items-center font-bold text-xs whitespace-nowrap">
+                    {cat.name}
+                  </Link>
+              ))}
+            </div>
+            <div className="hidden lg:grid grid-cols-5 gap-3">
+              {categories
+                .filter(c => products.some(p => p.category === c.slug))
+                .map((cat) => (
+                  <Link key={cat.id} href={`/catalog?category=${encodeURIComponent(cat.slug)}`} prefetch={false} className="group">
+                    <div className="w-full h-14 rounded-2xl border border-primary/10 bg-white hover:bg-primary hover:text-white transition-all flex items-center justify-center text-base font-bold text-foreground shadow-sm hover:shadow-md">
+                      {cat.name}
+                    </div>
+                  </Link>
+              ))}
+            </div>
+            <div className="text-center">
+              <Link href="/catalog" prefetch={false} className="inline-flex items-center justify-center rounded-full border border-primary/20 px-4 h-9 text-xs font-bold text-primary hover:bg-primary hover:text-white transition-colors">
+                Ver todas as categorias
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {bestSellers.length > 0 && (
         <Section 
           id="produtos"
@@ -188,6 +229,14 @@ export default function Home() {
           title="Kits Enxoval" 
           description="Curadoria exclusiva para montar o enxoval dos sonhos em um clique." 
           products={kits} 
+        />
+      )}
+
+      {kitsHigiene.length > 0 && (
+        <Section 
+          title="Kits de Higiene" 
+          description="Higiene organizada e prática: kits com duas peças por cor." 
+          products={kitsHigiene} 
         />
       )}
 

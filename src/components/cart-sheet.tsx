@@ -21,6 +21,7 @@ import {
   DialogTitle,
   DialogTrigger,
   DialogFooter,
+  DialogClose,
 } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
 import { ShoppingCart, Trash2, ArrowRight, CheckCircle2, ChevronLeft, Sparkles, Tag, RotateCcw, ShieldCheck, X as CloseIcon } from 'lucide-react';
@@ -34,7 +35,7 @@ export function CartSheet() {
   const { items, removeFromCart, subtotal, total, itemCount, addToCart, isCartOpen, setIsCartOpen, couponApplied, applyCoupon, discountAmount } = useCart();
   const [couponInput, setCouponInput] = useState("");
   const [confirmingDelete, setConfirmingDelete] = useState<string | null>(null);
-  const { products: allProducts, coupons } = useData();
+  const { products: allProducts, coupons, settings } = useData();
 
   // Mini lead capture (no carrinho)
   const [leadName, setLeadName] = useState('');
@@ -150,7 +151,7 @@ export function CartSheet() {
   };
 
   return (
-    <Sheet open={isCartOpen} onOpenChange={setIsCartOpen}>
+    <Sheet open={isCartOpen} onOpenChange={setIsCartOpen} modal={false}>
       <SheetTrigger asChild>
         <Button variant="ghost" size="icon" className="relative rounded-xl hover:bg-primary/5">
           <ShoppingCart className="w-6 h-6 text-primary" />
@@ -260,8 +261,8 @@ export function CartSheet() {
 
         {/* Rodapé e Cupom */}
         <div className="p-6 bg-white border-t flex flex-col gap-4 shrink-0">
-          {/* Oferta de Cupom (sempre visível se não houver cupom aplicado) */}
-          {!couponApplied && (
+          {/* Oferta de Cupom (controlada pelo Admin) */}
+          {!couponApplied && (settings?.showCouponCTA ?? true) && (
             <div className="space-y-3">
               <div className="flex justify-between items-center px-1">
                 <div className="text-[11px] font-bold text-foreground/70 uppercase tracking-widest">
@@ -276,6 +277,13 @@ export function CartSheet() {
                   </DialogTrigger>
                   <DialogContent className="w-[92vw] max-w-[360px] rounded-2xl p-0 overflow-hidden border-none shadow-2xl">
                     <div className="bg-pink-gradient p-6 text-white text-center space-y-2">
+                      <div className="absolute right-3 top-3">
+                        <DialogClose asChild>
+                          <button className="w-7 h-7 rounded-full bg-white/20 hover:bg-white/30 text-white flex items-center justify-center">
+                            <CloseIcon className="w-4 h-4" />
+                          </button>
+                        </DialogClose>
+                      </div>
                       <DialogHeader>
                         <DialogTitle className="text-xl font-black text-white leading-tight">
                           Cupom de 10% 🎁

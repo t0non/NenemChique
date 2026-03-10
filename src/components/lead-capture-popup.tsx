@@ -9,6 +9,9 @@ import { supabase } from '@/lib/supabase';
 import { formatPhoneBR, digitsOnlyPhone } from '@/lib/utils';
 
 export function LeadCapturePopup() {
+  if (typeof window !== 'undefined' && window.location.pathname.startsWith('/admin')) {
+    return null;
+  }
   const [isOpen, setIsOpen] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [name, setName] = useState('');

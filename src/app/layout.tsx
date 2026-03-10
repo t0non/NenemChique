@@ -8,7 +8,8 @@ import { CartProvider } from '@/context/cart-context';
 import { DataProvider } from '@/context/data-context';
 import { TopBanner } from '@/components/top-banner';
 import { FloatingCartButton } from '@/components/floating-cart-button';
-import { LeadCapturePopup } from '@/components/lead-capture-popup';
+import { ClientLeadWrapper } from '@/components/client-lead-wrapper';
+import slide1 from '@/imagens/SLIDE (1).png';
 
 const instrumentSans = Instrument_Sans({
   subsets: ['latin'],
@@ -36,6 +37,12 @@ export default function RootLayout({
   return (
     <html lang="pt-BR" className={`scroll-smooth overflow-x-hidden ${instrumentSans.variable}`}>
       <head>
+        {process.env.NODE_ENV === 'production' ? <script src="/env.js" /> : null}
+        <link rel="icon" href="/favicon.png" type="image/png" sizes="32x32" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+        <meta name="application-name" content="Neném Chique" />
+        <meta name="apple-mobile-web-app-title" content="Neném Chique" />
+        <link rel="preload" as="image" href={slide1.src} />
         <link rel="preconnect" href="https://pkparxozauwbpckwplht.supabase.co" />
         <link rel="preconnect" href="https://picsum.photos" />
         <meta property="og:title" content="Neném Chique — Tricot hipoalergênico e curadoria de enxoval" />
@@ -67,7 +74,7 @@ export default function RootLayout({
             <main className="flex-grow">{children}</main>
             <Footer />
             <Toaster />
-            <LeadCapturePopup />
+            <ClientLeadWrapper />
             {/* Floating Cart Button */}
             <FloatingCartButton />
           </CartProvider>

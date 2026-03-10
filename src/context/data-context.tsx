@@ -1,7 +1,7 @@
 "use client"
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Product, Category, Coupon } from '@/lib/types';
+import { Product, Category, Coupon, Review } from '@/lib/types';
 import { PRODUCTS, CATEGORIES } from '@/lib/data';
 import { supabase } from '@/lib/supabase';
 
@@ -12,6 +12,7 @@ interface SiteSettings {
   heroTitle: string;
   heroDescription: string;
   heroImageUrl: string;
+  showCouponCTA?: boolean;
 }
 
 interface DataContextType {
@@ -19,6 +20,7 @@ interface DataContextType {
   categories: Category[];
   coupons: Coupon[];
   settings: SiteSettings;
+  reviewsByProduct: Record<string, Review[]>;
   addProduct: (product: any) => Promise<void>;
   updateProduct: (id: string, product: any) => Promise<void>;
   deleteProduct: (id: string) => Promise<void>;
@@ -29,11 +31,14 @@ interface DataContextType {
   updateCoupon: (id: string, coupon: any) => Promise<void>;
   deleteCoupon: (id: string) => Promise<void>;
   updateSettings: (settings: SiteSettings) => Promise<void>;
+  addProductReview: (productId: string, review: Omit<Review, 'id' | 'createdAt'>) => Promise<void>;
   importData: (json: string) => Promise<void>;
   exportData: () => string;
   createSafetyBackup: () => void;
   restoreFromBackup: () => Promise<void>;
   syncInitialData: () => Promise<void>;
+  migrateProductCategories: () => Promise<{ movedToMacacoes: number; keptInBodies: number }>;
+  standardizeBodiesPrices: () => Promise<number>;
   isLoading: boolean;
 }
 
@@ -49,6 +54,7 @@ const DEFAULT_SETTINGS: SiteSettings = {
   heroTitle: "Amor que veste, conforto que abraça.",
   heroDescription: "Tecidos hipoalergênicos e curadoria especializada. Peças escolhidas para a pele mais sensível do mundo.",
   heroImageUrl: "https://picsum.photos/seed/baby1/800/800",
+  showCouponCTA: true,
 };
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -60,6 +66,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [settings, setSettings] = useState<SiteSettings>(DEFAULT_SETTINGS);
   const [isLoading, setIsLoading] = useState(false); // NUNCA começa como true para não travar a tela
+  const [reviewsByProduct, setReviewsByProduct] = useState<Record<string, Review[]>>({});
 
   // Helper to map DB columns (snake_case) to state (camelCase)
   const mapProductFromDB = (p: any): Product => ({
@@ -70,6 +77,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     category: p.category,
     images: p.images || [],
     isUpsell: p.is_upsell || false,
+    isBestSeller: p.is_best_seller || false,
+    bestSellerRank: p.best_seller_rank != null ? Number(p.best_seller_rank) : undefined,
     promoPrice: p.promo_price ? Number(p.promo_price) : undefined,
     sizes: p.sizes || [],
     gender: p.gender || 'unisex',
@@ -84,6 +93,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     category: p.category,
     images: p.images,
     is_upsell: p.isUpsell,
+    is_best_seller: p.isBestSeller,
+    best_seller_rank: p.bestSellerRank ?? null,
     promo_price: p.promoPrice,
     sizes: p.sizes,
     gender: p.gender,
@@ -115,6 +126,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     heroTitle: s.hero_title,
     heroDescription: s.hero_description,
     heroImageUrl: s.hero_image_url,
+    showCouponCTA: s.show_coupon_cta ?? true,
   });
 
   const mapSettingsToDB = (s: SiteSettings) => ({
@@ -124,12 +136,32 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     hero_title: s.heroTitle,
     hero_description: s.heroDescription,
     hero_image_url: s.heroImageUrl,
+    show_coupon_cta: s.showCouponCTA ?? true,
+  });
+  
+  const mapReviewFromDB = (r: any): Review => ({
+    id: r.id,
+    productId: r.product_id,
+    name: r.name,
+    rating: Number(r.rating),
+    comment: r.comment,
+    createdAt: r.created_at || undefined,
+  });
+  const mapReviewToDB = (r: Omit<Review, 'id' | 'createdAt'>) => ({
+    product_id: r.productId,
+    name: r.name,
+    rating: r.rating,
+    comment: r.comment,
   });
 
   const fetchData = async () => {
     const isAdmin = typeof window !== 'undefined' && window.location.pathname.startsWith('/admin');
+    const hasSupabase =
+      (typeof window !== 'undefined' && (window as any).__NENEM_ENV?.SUPABASE_URL) ||
+      (process.env.NEXT_PUBLIC_SUPABASE_URL as string) ||
+      '';
     
-    // 1. CARREGAMENTO INSTANTÂNEO (SEM ESPERA)
+    // 1. CARREGAMENTO INSTANTÂNEO (SEM ESPERA) + FALLBACK LOCAL
     // Tenta recuperar cache local imediatamente
     if (typeof window !== 'undefined') {
       try {
@@ -137,11 +169,13 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         const backupCats = localStorage.getItem('nenem_backup_categories');
         const backupSettings = localStorage.getItem('nenem_backup_settings');
         const backupCoupons = localStorage.getItem('nenem_backup_coupons');
+        const backupReviews = localStorage.getItem('nenem_backup_reviews');
         
         if (backupProds) setProducts(JSON.parse(backupProds));
         if (backupCats) setCategories(JSON.parse(backupCats));
         if (backupSettings) setSettings(JSON.parse(backupSettings));
         if (backupCoupons) setCoupons(JSON.parse(backupCoupons));
+        if (backupReviews) setReviewsByProduct(JSON.parse(backupReviews));
       } catch (e) {
         console.warn("Erro ao ler cache local:", e);
       }
@@ -152,6 +186,12 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     if (isAdmin) setIsLoading(true);
 
     try {
+      if (!hasSupabase) {
+        setProducts((prev) => (prev.length > 0 ? prev : PRODUCTS));
+        setCategories((prev) => (prev.length > 0 ? prev : CATEGORIES));
+        setIsLoading(false);
+        return;
+      }
       // Timeout de 3 segundos para o Supabase (mais agressivo)
       const timeoutPromise = new Promise((_, reject) => 
         setTimeout(() => reject(new Error('Supabase Timeout')), 3000)
@@ -165,7 +205,17 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             .limit(100);
 
           if (!pError && pData) {
-            const mappedProducts = pData.map(mapProductFromDB);
+            let mappedProducts = pData.map(mapProductFromDB);
+            try {
+              const localPricingRaw = localStorage.getItem('nenem_size_pricing');
+              const localPricing = localPricingRaw ? JSON.parse(localPricingRaw) : {};
+              mappedProducts = mappedProducts.map((prod) => {
+                const byId = localPricing[prod.id];
+                const byName = localPricing[prod.name];
+                const pricing = byId || byName;
+                return pricing ? { ...prod, sizePricing: pricing } : prod;
+              });
+            } catch {}
             setProducts(mappedProducts);
             localStorage.setItem('nenem_backup_products', JSON.stringify(mappedProducts));
           }
@@ -193,6 +243,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             setCoupons(mappedCoupons);
             localStorage.setItem('nenem_backup_coupons', JSON.stringify(mappedCoupons));
           }
+          
+          // Reviews são carregadas por página de produto; não buscamos globalmente para reduzir payload inicial
         } catch (innerError) {
           console.error("Erro interno no fetch:", innerError);
         }
@@ -210,6 +262,11 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   const fetchAdminData = async () => {
     try {
+      const hasSupabase =
+        (typeof window !== 'undefined' && (window as any).__NENEM_ENV?.SUPABASE_URL) ||
+        (process.env.NEXT_PUBLIC_SUPABASE_URL as string) ||
+        '';
+      if (!hasSupabase) return;
       // No admin, sempre forçamos o carregamento de tudo, incluindo cupons
       const { data: cpData } = await supabase.from('coupons').select('*');
       if (cpData) setCoupons(cpData.map(mapCouponFromDB));
@@ -228,26 +285,72 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   const addProduct = async (p: any) => {
     let payload = mapProductToDB(p);
-    let { error } = await supabase.from('products').insert([payload]);
-    if (error && String(error.message || '').includes('gender')) {
-      const { gender, ...rest } = payload as any;
-      const retry = await supabase.from('products').insert([rest]);
-      if (retry.error) throw retry.error;
-    } else if (error) {
-      throw error;
+    let res = await supabase.from('products').insert([payload]);
+    if (res.error) {
+      const msg = String(res.error.message || '');
+      let tmp: any = { ...payload };
+      if (msg.includes('gender')) {
+        const { gender, ...rest } = tmp;
+        tmp = rest;
+      }
+      if (msg.includes('colors')) {
+        const { colors, ...rest } = tmp;
+        tmp = rest;
+      }
+      if (msg.includes('sizes')) {
+        const { sizes, ...rest } = tmp;
+        tmp = rest;
+      }
+      if (msg.includes('is_best_seller')) {
+        const { is_best_seller, ...rest } = tmp;
+        tmp = rest;
+      }
+      if (msg.includes('best_seller_rank')) {
+        const { best_seller_rank, ...rest } = tmp;
+        tmp = rest;
+      }
+      if (tmp !== payload) {
+        const retry = await supabase.from('products').insert([tmp]);
+        if (retry.error) throw retry.error;
+      } else {
+        throw res.error;
+      }
     }
     await fetchData();
   };
 
   const updateProduct = async (id: string, p: any) => {
     let payload = mapProductToDB(p);
-    let { error } = await supabase.from('products').update(payload).eq('id', id);
-    if (error && String(error.message || '').includes('gender')) {
-      const { gender, ...rest } = payload as any;
-      const retry = await supabase.from('products').update(rest).eq('id', id);
-      if (retry.error) throw retry.error;
-    } else if (error) {
-      throw error;
+    let res = await supabase.from('products').update(payload).eq('id', id);
+    if (res.error) {
+      const msg = String(res.error.message || '');
+      let tmp: any = { ...payload };
+      if (msg.includes('gender')) {
+        const { gender, ...rest } = tmp;
+        tmp = rest;
+      }
+      if (msg.includes('colors')) {
+        const { colors, ...rest } = tmp;
+        tmp = rest;
+      }
+      if (msg.includes('sizes')) {
+        const { sizes, ...rest } = tmp;
+        tmp = rest;
+      }
+      if (msg.includes('is_best_seller')) {
+        const { is_best_seller, ...rest } = tmp;
+        tmp = rest;
+      }
+      if (msg.includes('best_seller_rank')) {
+        const { best_seller_rank, ...rest } = tmp;
+        tmp = rest;
+      }
+      if (tmp !== payload) {
+        const retry = await supabase.from('products').update(tmp).eq('id', id);
+        if (retry.error) throw retry.error;
+      } else {
+        throw res.error;
+      }
     }
     await fetchData();
   };
@@ -320,7 +423,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   };
 
   const exportData = () => {
-    return JSON.stringify({ products, categories, settings }, null, 2);
+    return JSON.stringify({ products, categories, settings, reviewsByProduct }, null, 2);
   };
 
   const importData = async (json: string) => {
@@ -337,6 +440,17 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       if (data.settings) {
         await supabase.from('settings').upsert([{ id: 1, ...mapSettingsToDB(data.settings) }]);
       }
+      if (data.reviewsByProduct) {
+        try {
+          const grouped: Record<string, Review[]> = data.reviewsByProduct || {};
+          const rows: any[] = [];
+          Object.entries(grouped).forEach(([productId, list]) => {
+            const arr: Review[] = Array.isArray(list) ? (list as Review[]) : [];
+            arr.forEach((r: Review) => rows.push(mapReviewToDB({ productId, name: r.name, rating: r.rating, comment: r.comment })));
+          });
+          if (rows.length > 0) await supabase.from('reviews').insert(rows);
+        } catch {}
+      }
       await fetchData();
     } catch (e) {
       console.error("Erro ao importar JSON", e);
@@ -348,13 +462,26 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     try {
       setIsLoading(true);
       // Sincronizar Categorias
-      const { data: existingCats } = await supabase.from('categories').select('id');
+      const { data: existingCats } = await supabase.from('categories').select('*');
       if (!existingCats || existingCats.length === 0) {
         const catsToInsert = CATEGORIES.map(c => ({
           name: c.name,
           slug: c.slug
         }));
         await supabase.from('categories').insert(catsToInsert);
+      } else {
+        const hasMacacoes = existingCats.some((c: any) => c.slug === 'macacoes');
+        const hasBodies = existingCats.some((c: any) => c.slug === 'bodies');
+        // Renomear antiga 'Bodies & Macacões' para 'Macacões'
+        const combined = existingCats.find((c: any) => c.slug === 'bodies' && String(c.name).toLowerCase().includes('macac'));
+        if (!hasMacacoes && combined) {
+          await supabase.from('categories').update({ name: 'Macacões', slug: 'macacoes' }).eq('id', combined.id);
+        }
+        // Garantir criação de 'Bodies'
+        const stillHasBodies = (await supabase.from('categories').select('slug')).data?.some((c: any) => c.slug === 'bodies');
+        if (!stillHasBodies) {
+          await supabase.from('categories').insert([{ name: 'Bodies', slug: 'bodies' }]);
+        }
       }
 
       // Sincronizar Produtos
@@ -379,10 +506,58 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const migrateProductCategories = async () => {
+    try {
+      setIsLoading(true);
+      // Garante que as categorias existam
+      await syncInitialData();
+      const { data: prods, error } = await supabase.from('products').select('id,name,category');
+      if (error) throw error;
+      let movedToMacacoes = 0;
+      let keptInBodies = 0;
+      if (prods && prods.length > 0) {
+        for (const p of prods) {
+          const name: string = String(p.name || '');
+          const cat: string = String(p.category || '');
+          const hasMacac = /macac/i.test(name); // macacão / macacao / macac
+          const hasBody = /body/i.test(name);
+          if (cat === 'bodies' && hasMacac && !hasBody) {
+            const { error: upErr } = await supabase.from('products').update({ category: 'macacoes' }).eq('id', p.id);
+            if (!upErr) movedToMacacoes++;
+          } else if (cat === 'bodies') {
+            keptInBodies++;
+          }
+        }
+      }
+      await fetchData();
+      return { movedToMacacoes, keptInBodies };
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const standardizeBodiesPrices = async () => {
+    try {
+      setIsLoading(true);
+      // Define price 29.90 and promo_price 15.00 for all bodies
+      const { data, error } = await supabase
+        .from('products')
+        .update({ price: 29.9, promo_price: 15 })
+        .eq('category', 'bodies')
+        .select('id');
+      if (error) throw error;
+      await fetchData();
+      return data ? data.length : 0;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const createSafetyBackup = () => {
     localStorage.setItem('nenem_backup_products', JSON.stringify(products));
     localStorage.setItem('nenem_backup_categories', JSON.stringify(categories));
     localStorage.setItem('nenem_backup_settings', JSON.stringify(settings));
+    localStorage.setItem('nenem_backup_reviews', JSON.stringify(reviewsByProduct));
     localStorage.setItem('nenem_last_sync', new Date().toISOString());
   };
 
@@ -392,6 +567,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       const savedProducts = localStorage.getItem('nenem_backup_products');
       const savedCategories = localStorage.getItem('nenem_backup_categories');
       const savedSettings = localStorage.getItem('nenem_backup_settings');
+      const savedReviews = localStorage.getItem('nenem_backup_reviews');
 
       if (savedProducts) {
         const parsedProducts = JSON.parse(savedProducts);
@@ -410,6 +586,18 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         const parsedSettings = JSON.parse(savedSettings);
         await supabase.from('settings').upsert([{ id: 1, ...mapSettingsToDB(parsedSettings) }]);
       }
+      
+      if (savedReviews) {
+        try {
+          const grouped = JSON.parse(savedReviews);
+          const rows: any[] = [];
+          Object.entries(grouped).forEach(([productId, list]) => {
+            const arr: Review[] = Array.isArray(list) ? (list as Review[]) : [];
+            arr.forEach((r: Review) => rows.push(mapReviewToDB({ productId, name: r.name, rating: r.rating, comment: r.comment })));
+          });
+          if (rows.length > 0) await supabase.from('reviews').insert(rows);
+        } catch {}
+      }
 
       await fetchData();
     } catch (e) {
@@ -419,6 +607,25 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       setIsLoading(false);
     }
   };
+  
+  const addProductReview = async (productId: string, review: Omit<Review, 'id' | 'createdAt'>) => {
+    try {
+      const payload = mapReviewToDB(review);
+      const { error } = await supabase.from('reviews').insert([payload]);
+      if (error) throw error;
+    } catch (e) {
+      // Fallback local
+      const entry: Review = { id: String(Math.random()), productId, name: review.name, rating: review.rating, comment: review.comment, createdAt: new Date().toISOString() };
+      const next = { ...reviewsByProduct };
+      const key = String(productId);
+      next[key] = [entry, ...(next[key] || [])];
+      setReviewsByProduct(next);
+      localStorage.setItem('nenem_backup_reviews', JSON.stringify(next));
+      return;
+    }
+    // Atualizar estado via refetch
+    await fetchData();
+  };
 
   return (
     <DataContext.Provider value={{ 
@@ -426,6 +633,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       categories, 
       coupons,
       settings, 
+      reviewsByProduct,
       addProduct, 
       updateProduct, 
       deleteProduct, 
@@ -436,11 +644,14 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       updateCoupon,
       deleteCoupon,
       updateSettings,
+      addProductReview,
       importData,
       exportData,
       createSafetyBackup,
       restoreFromBackup,
       syncInitialData,
+      migrateProductCategories,
+      standardizeBodiesPrices,
       isLoading 
     }}>
       {children}
