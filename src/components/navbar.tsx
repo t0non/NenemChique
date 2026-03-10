@@ -29,9 +29,9 @@ export function Navbar() {
 
   return (
     <nav className="sticky top-[44px] z-[999] w-full bg-white/80 backdrop-blur-md border-b border-primary/10 shadow-sm">
-      <div className="container-standard h-16 sm:h-20 flex items-center justify-between">
+      <div className="container-standard h-[72px] sm:h-[88px] flex items-center justify-between">
         <Link href="/" className="flex items-center gap-3 group">
-          <div className="relative w-16 h-16 sm:w-24 sm:h-24 flex items-center justify-center">
+          <div className="relative w-[72px] h-[72px] sm:w-[104px] sm:h-[104px] flex items-center justify-center">
              <Image 
               src={logo}
               alt="Neném Chique Logo" 

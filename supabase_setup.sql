@@ -70,6 +70,19 @@ create table if not exists coupons (
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
+-- Adiciona coluna de validade se não existir
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'coupons') THEN
+    IF NOT EXISTS (
+      SELECT 1 FROM information_schema.columns WHERE table_name = 'coupons' AND column_name = 'expires_at'
+    ) THEN
+      ALTER TABLE coupons ADD COLUMN expires_at timestamp with time zone;
+    END IF;
+  END IF;
+END
+$$;
+
 -- Habilitar RLS (Row Level Security) em todas as tabelas
 alter table products enable row level security;
 alter table categories enable row level security;
@@ -135,4 +148,32 @@ begin
     create policy "Permitir escrita admin" on coupons for all using (true);
   end if;
 end
+$$;
+
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'products') THEN
+    IF NOT EXISTS (
+      SELECT 1 
+      FROM information_schema.columns 
+      WHERE table_name = 'products' AND column_name = 'gender'
+    ) THEN
+      ALTER TABLE products ADD COLUMN gender text DEFAULT 'unisex';
+    END IF;
+    IF NOT EXISTS (
+      SELECT 1 
+      FROM information_schema.columns 
+      WHERE table_name = 'products' AND column_name = 'colors'
+    ) THEN
+      ALTER TABLE products ADD COLUMN colors text[] DEFAULT '{}';
+    END IF;
+    IF NOT EXISTS (
+      SELECT 1 
+      FROM information_schema.columns 
+      WHERE table_name = 'products' AND column_name = 'sizes'
+    ) THEN
+      ALTER TABLE products ADD COLUMN sizes text[] DEFAULT '{}';
+    END IF;
+  END IF;
+END
 $$;

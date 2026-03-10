@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { supabase } from '@/lib/supabase';
+import { formatPhoneBR, digitsOnlyPhone } from '@/lib/utils';
 import { personalizedLayetteKitRecommendation, PersonalizedLayetteKitRecommendationOutput } from '@/ai/flows/personalized-layette-kit-recommendation';
 
 export function AIRecommender() {
@@ -37,7 +38,7 @@ export function AIRecommender() {
       try {
         await supabase.from('leads').insert({
           name: form.name,
-          whatsapp: form.whatsapp,
+          whatsapp: digitsOnlyPhone(form.whatsapp),
           source: 'ai_recommender',
           data: { 
             babyAgeSize: form.babyAgeSize, 
@@ -57,7 +58,7 @@ export function AIRecommender() {
 
   return (
     <section className="py-24 bg-background relative">
-      <div className="container mx-auto px-4">
+      <div className="container-standard">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-16">
             <Badge className="mb-6 px-6 py-2 text-xs font-black uppercase tracking-[0.2em] bg-primary/10 text-primary border-none rounded-full">Tecnologia & Carinho</Badge>
@@ -99,7 +100,7 @@ export function AIRecommender() {
                         placeholder="(00) 00000-0000" 
                         className="rounded-2xl border-muted bg-muted/20 h-14 pl-11"
                         value={form.whatsapp}
-                        onChange={(e) => setForm({ ...form, whatsapp: e.target.value })}
+                        onChange={(e) => setForm({ ...form, whatsapp: formatPhoneBR(e.target.value) })}
                       />
                     </div>
                   </div>

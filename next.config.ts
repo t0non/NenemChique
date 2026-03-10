@@ -8,7 +8,10 @@ const nextConfig: NextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
+  output: process.env.NODE_ENV === 'production' ? 'export' : undefined,
   images: {
+    // Para static export, desabilitamos a otimização de imagens do Next
+    unoptimized: true,
     formats: ['image/avif', 'image/webp'],
     remotePatterns: [
       {

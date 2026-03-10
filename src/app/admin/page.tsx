@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from '@/components/ui/label';
 import { Checkbox } from "@/components/ui/checkbox";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { useData } from '@/context/data-context';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabase';
@@ -52,6 +53,8 @@ export default function AdminPage() {
     createSafetyBackup,
     restoreFromBackup,
     syncInitialData,
+    migrateProductCategories,
+    standardizeBodiesPrices,
     isLoading
   } = useData();
 
@@ -65,10 +68,21 @@ export default function AdminPage() {
 
   const [orders, setOrders] = useState<any[]>([]);
   const [isLoadingOrders, setIsLoadingOrders] = useState(false);
+  const [productDialogOpen, setProductDialogOpen] = useState(false);
+  const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
+  const [newReviewsCount, setNewReviewsCount] = useState(0);
 
   const fetchOrders = async () => {
     setIsLoadingOrders(true);
     try {
+      const hasSupabase =
+        (typeof window !== 'undefined' && (window as any).__NENEM_ENV?.SUPABASE_URL) ||
+        (process.env.NEXT_PUBLIC_SUPABASE_URL as string) ||
+        '';
+      if (!hasSupabase) {
+        setOrders([]);
+        return;
+      }
       const { data, error } = await supabase
         .from('orders')
         .select('*')
@@ -101,6 +115,14 @@ export default function AdminPage() {
   const fetchLeads = async () => {
     setIsLoadingLeads(true);
     try {
+      const hasSupabase =
+        (typeof window !== 'undefined' && (window as any).__NENEM_ENV?.SUPABASE_URL) ||
+        (process.env.NEXT_PUBLIC_SUPABASE_URL as string) ||
+        '';
+      if (!hasSupabase) {
+        setLeads([]);
+        return;
+      }
       const { data, error } = await supabase
         .from('leads')
         .select('*')
@@ -113,6 +135,28 @@ export default function AdminPage() {
     } finally {
       setIsLoadingLeads(false);
     }
+  };
+  
+  const fetchNewReviews = async () => {
+    try {
+      const lastSeenRaw = typeof window !== 'undefined' ? localStorage.getItem('nenem_admin_last_reviews_seen') : null;
+      const lastSeen = lastSeenRaw ? new Date(lastSeenRaw).toISOString() : null;
+      const query = supabase.from('reviews').select('created_at');
+      const { data, error } = lastSeen ? await query.gt('created_at', lastSeen) : await query;
+      if (error) throw error;
+      setNewReviewsCount(Array.isArray(data) ? data.length : 0);
+    } catch (e) {
+      setNewReviewsCount(0);
+    }
+  };
+  
+  useEffect(() => {
+    fetchNewReviews();
+  }, []);
+  
+  const markReviewsAsSeen = () => {
+    localStorage.setItem('nenem_admin_last_reviews_seen', new Date().toISOString());
+    setNewReviewsCount(0);
   };
 
   useEffect(() => {
@@ -182,44 +226,40 @@ export default function AdminPage() {
   }, [products]);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, target: 'product' | 'hero') => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
+    const inputEl = e.currentTarget;
+    const files = inputEl?.files;
+    if (!files || files.length === 0) return;
     setIsUploading(true);
     try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Math.random()}.${fileExt}`;
-      const filePath = `uploads/${fileName}`;
-
-      // 1. Upload the file to Supabase Storage
-      const { data, error: uploadError } = await supabase.storage
-        .from('Imagens') // Usando 'Imagens' com I maiúsculo conforme o bucket criado
-        .upload(filePath, file);
-
-      if (uploadError) throw uploadError;
-
-      // 2. Get the public URL
-      const { data: { publicUrl } } = supabase.storage
-        .from('Imagens')
-        .getPublicUrl(filePath);
-
-      // 3. Update the form
       if (target === 'product') {
-        setProductForm(prev => ({ ...prev, imageUrl: publicUrl }));
+        const uploadedUrls: string[] = [];
+        for (let i = 0; i < files.length; i++) {
+          const file = files[i];
+          const fileExt = file.name.split('.').pop();
+          const fileName = `${Math.random()}.${fileExt}`;
+          const filePath = `uploads/${fileName}`;
+          const { error: uploadError } = await supabase.storage.from('Imagens').upload(filePath, file);
+          if (uploadError) throw uploadError;
+          const { data: { publicUrl } } = supabase.storage.from('Imagens').getPublicUrl(filePath);
+          uploadedUrls.push(publicUrl);
+        }
+        setProductForm(prev => ({ ...prev, images: [...prev.images, ...uploadedUrls] }));
       } else {
+        const file = files[0];
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${Math.random()}.${fileExt}`;
+        const filePath = `uploads/${fileName}`;
+        const { error: uploadError } = await supabase.storage.from('Imagens').upload(filePath, file);
+        if (uploadError) throw uploadError;
+        const { data: { publicUrl } } = supabase.storage.from('Imagens').getPublicUrl(filePath);
         setSettingsForm(prev => ({ ...prev, heroImageUrl: publicUrl }));
       }
-
       toast({ title: "Sucesso", description: "Imagem enviada com sucesso!" });
     } catch (error: any) {
-      console.error('Erro no upload:', error);
-      toast({ 
-        variant: "destructive", 
-        title: "Erro no upload", 
-        description: error.message || "Verifique se o bucket 'images' foi criado no Supabase." 
-      });
+      toast({ variant: "destructive", title: "Erro no upload", description: error.message || "Falha no envio" });
     } finally {
       setIsUploading(false);
+      if (inputEl) inputEl.value = "";
     }
   };
 
@@ -232,6 +272,103 @@ export default function AdminPage() {
       toast({ variant: "destructive", title: "Erro", description: "Falha na sincronização." });
     } finally {
       setIsSyncing(false);
+    }
+  };
+  const [isMigrating, setIsMigrating] = useState(false);
+  const handleStandardizeBodies = async () => {
+    setIsMigrating(true);
+    try {
+      const count = await standardizeBodiesPrices();
+      toast({ title: "Preços ajustados", description: `${count} body(s) atualizados para R$ 29,90 (promo R$ 15,00).` });
+    } catch (e: any) {
+      const msg = e?.message || 'Falha ao padronizar preços.';
+      toast({ variant: "destructive", title: "Erro", description: msg });
+    } finally {
+      setIsMigrating(false);
+    }
+  };
+  const handleMigrateCategories = async () => {
+    setIsMigrating(true);
+    try {
+      const result = await migrateProductCategories();
+      toast({ title: "Migração concluída", description: `${result.movedToMacacoes} produto(s) movidos para Macacões.` });
+    } catch (e: any) {
+      const msg = e?.message || 'Falha ao migrar categorias.';
+      toast({ variant: "destructive", title: "Erro", description: msg });
+    } finally {
+      setIsMigrating(false);
+    }
+  };
+  const handleFixHygieneKits = async () => {
+    setIsMigrating(true);
+    try {
+      let updated = 0;
+      for (const p of products) {
+        const nm = String(p.name || '');
+        if (/\bkit\s+higiene\b/i.test(nm)) {
+          const newName = nm.replace(/cuidados/gi, 'Higiene');
+          const newCategory = 'kits-higiene';
+          const newImages = Array.isArray(p.images) ? p.images.slice(0, 2) : [];
+          await updateProduct(p.id, {
+            name: newName,
+            category: newCategory,
+            price: Number(p.price || 0),
+            promoPrice: p.promoPrice != null ? Number(p.promoPrice) : null,
+            description: p.description || '',
+            images: newImages,
+            isUpsell: !!p.isUpsell,
+            sizes: Array.isArray(p.sizes) ? p.sizes : [],
+            gender: p.gender || 'unisex',
+            colors: Array.isArray(p.colors) ? p.colors : [],
+          });
+          updated++;
+        }
+      }
+      toast({ title: "Kits separados", description: `${updated} produto(s) movidos para 'Kits de Higiene'.` });
+    } catch (e: any) {
+      const msg = e?.message || 'Falha ao corrigir kits.';
+      toast({ variant: "destructive", title: "Erro", description: msg });
+    } finally {
+      setIsMigrating(false);
+    }
+  };
+  const handleSeparateHygieneKits = async () => {
+    setIsMigrating(true);
+    try {
+      // Garantir categoria 'Kits de Higiene'
+      const exists = categories.some(c => c.slug === 'kits-higiene');
+      if (!exists) {
+        await addCategory({ name: 'Kits de Higiene', slug: 'kits-higiene' });
+      }
+      let moved = 0;
+      for (const p of products) {
+        const nm = String(p.name || '');
+        const isHygieneByName = /\bkit(\s+de)?\s+higiene\b/i.test(nm);
+        const looksHygieneChanged = /\bkit(\s+de)?\s+cuidados\b/i.test(nm) && Array.isArray(p.images) && p.images.length === 2;
+        if (isHygieneByName || looksHygieneChanged) {
+          const newName = nm.replace(/cuidados/gi, 'Higiene');
+          const newImages = Array.isArray(p.images) ? p.images.slice(0, 2) : [];
+          await updateProduct(p.id, {
+            name: newName,
+            category: 'kits-higiene',
+            price: Number(p.price || 0),
+            promoPrice: p.promoPrice != null ? Number(p.promoPrice) : null,
+            description: p.description || '',
+            images: newImages,
+            isUpsell: !!p.isUpsell,
+            sizes: Array.isArray(p.sizes) ? p.sizes : [],
+            gender: p.gender || 'unisex',
+            colors: Array.isArray(p.colors) ? p.colors : [],
+          });
+          moved++;
+        }
+      }
+      toast({ title: "Kits Higiene atualizados", description: `${moved} produto(s) agora em 'Kits de Higiene'.` });
+    } catch (e: any) {
+      const msg = e?.message || 'Falha ao separar kits de higiene.';
+      toast({ variant: "destructive", title: "Erro", description: msg });
+    } finally {
+      setIsMigrating(false);
     }
   };
 
@@ -247,17 +384,49 @@ export default function AdminPage() {
     category: '',
     price: '',
     description: '',
-    imageUrl: '',
+    images: [] as string[],
     isUpsell: false,
+    isBestSeller: false,
+    bestSellerRank: '' as string,
     promoPrice: '',
-    sizes: [] as string[],
+    sizes: ['P','M','G'] as string[],
+    gender: 'unisex' as 'masculino' | 'feminino' | 'unisex',
+    colors: [] as string[],
+    dynamicBySize: false,
+    sizePricing: {} as Record<string, { price?: string; promo?: string }>,
   });
 
+  const SIZE_ORDER = ['RN','P','M','G','GG','1','2','3','4','6','8','10','12','14'];
+  const sortSizes = (arr: string[]) => [...arr].sort((a, b) => SIZE_ORDER.indexOf(a) - SIZE_ORDER.indexOf(b));
+
+  const CATEGORY_DEFAULTS: Record<string, {sizes?: string[]; price?: string; promoPrice?: string; description?: string; dynamicBySize?: boolean}> = {
+    bodies: { price: '29,90', promoPrice: '15,00' },
+    'conjuntos-fleece': { sizes: ['1','2','3'], price: '99,00', promoPrice: '68,00', description: 'Conjunto de fleece macio, quentinho e confortável.', dynamicBySize: true },
+  };
+
+  const applyCategoryDefaults = (category: string) => {
+    const defs = CATEGORY_DEFAULTS[category];
+    if (!defs) {
+      setProductForm(prev => ({ ...prev, category }));
+      return;
+    }
+    setProductForm(prev => ({
+      ...prev,
+      category,
+      sizes: (!prev.sizes || prev.sizes.length === 0) && defs.sizes ? defs.sizes : prev.sizes,
+      price: !prev.price && defs.price ? defs.price : prev.price,
+      promoPrice: !prev.promoPrice && defs.promoPrice ? defs.promoPrice : prev.promoPrice,
+      description: !prev.description && defs.description ? defs.description : prev.description,
+      dynamicBySize: defs.dynamicBySize ?? prev.dynamicBySize,
+      sizePricing: prev.sizePricing,
+    }));
+  };
   const [couponForm, setCouponForm] = useState({
     code: '',
     discountType: 'percentage' as 'percentage' | 'fixed',
     discountValue: '',
     active: true,
+    expiresAt: '',
   });
 
   const [categoryForm, setCategoryForm] = useState({
@@ -271,6 +440,7 @@ export default function AdminPage() {
     heroTitle: '',
     heroDescription: '',
     heroImageUrl: '',
+    showCouponCTA: true,
   });
 
   // Sync settingsForm with settings context on first load
@@ -283,22 +453,72 @@ export default function AdminPage() {
         heroTitle: settings.heroTitle || '',
         heroDescription: settings.heroDescription || '',
         heroImageUrl: settings.heroImageUrl || '',
+        showCouponCTA: settings.showCouponCTA ?? true,
       });
     }
   }, [settings]);
 
+  const formatDigitsToBRL = (digits: string) => {
+    const only = digits.replace(/\D/g, '');
+    if (!only) return '';
+    const padded = only.padStart(3, '0');
+    const cents = padded.slice(-2);
+    const ints = padded.slice(0, -2).replace(/^0+/, '') || '0';
+    const withSep = ints.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    return `${withSep},${cents}`;
+  };
+  const formatNumberToBRLString = (n: number) => {
+    const abs = Math.round(n * 100);
+    const s = String(abs);
+    return formatDigitsToBRL(s);
+  };
+  const unformatBRLStringToNumber = (s: string) => {
+    if (!s) return NaN;
+    const cleaned = s.replace(/\./g, '').replace(',', '.').replace(/[^\d.]/g, '');
+    return parseFloat(cleaned);
+  };
+
   const handleSaveProduct = async () => {
     setIsAdding(true);
     try {
+      const parseNumber = (v: string) => unformatBRLStringToNumber(v);
+      const nameOk = productForm.name.trim().length > 0;
+      const categoryOk = productForm.category && productForm.category.trim().length > 0;
+      const priceValue = parseNumber(productForm.price);
+      const priceOk = Number.isFinite(priceValue) && priceValue >= 0;
+      if (!nameOk || !categoryOk || !priceOk) {
+        toast({
+          variant: "destructive",
+          title: "Preencha os campos obrigatórios",
+          description: !nameOk
+            ? "Informe o nome do produto."
+            : !categoryOk
+            ? "Selecione a categoria."
+            : "Informe um preço válido (ex: 49,90).",
+        });
+        return;
+      }
+      if (productForm.images.length === 0) {
+        toast({
+          variant: "destructive",
+          title: "Adicione pelo menos uma imagem",
+          description: "Envie ao menos uma foto do produto.",
+        });
+        return;
+      }
       const dataToSave = {
         name: productForm.name,
         category: productForm.category,
-        price: parseFloat(productForm.price),
-        promoPrice: productForm.promoPrice ? parseFloat(productForm.promoPrice) : null,
+        price: priceValue,
+        promoPrice: productForm.promoPrice ? parseNumber(productForm.promoPrice) : null,
         description: productForm.description,
-        images: [productForm.imageUrl],
+        images: productForm.images,
         isUpsell: productForm.isUpsell,
+        isBestSeller: productForm.isBestSeller,
+        bestSellerRank: productForm.bestSellerRank ? Number(productForm.bestSellerRank) : null,
         sizes: productForm.sizes,
+        gender: productForm.gender,
+        colors: productForm.colors,
       };
 
       if (editingProduct) {
@@ -309,10 +529,35 @@ export default function AdminPage() {
         toast({ title: "Sucesso", description: "Produto adicionado com sucesso!" });
       }
       
-      setProductForm({ name: '', category: categories?.[0]?.slug || '', price: '', description: '', imageUrl: '', isUpsell: false, promoPrice: '', sizes: [] });
+      if (productForm.dynamicBySize && Object.keys(productForm.sizePricing).length > 0) {
+        try {
+          const raw = localStorage.getItem('nenem_size_pricing');
+          const store = raw ? JSON.parse(raw) : {};
+          const parseNumber = (v: string) => unformatBRLStringToNumber(v);
+          const map: Record<string, { price: number; promo?: number }> = {};
+          for (const [sz, vals] of Object.entries(productForm.sizePricing)) {
+            const p = vals.price ? parseNumber(vals.price) : NaN;
+            const pr = vals.promo ? parseNumber(vals.promo) : undefined;
+            if (Number.isFinite(p)) {
+              map[sz] = { price: p, promo: (pr && Number.isFinite(pr)) ? pr : undefined };
+            }
+          }
+          const key = editingProduct?.id || productForm.name;
+          store[key] = map;
+          localStorage.setItem('nenem_size_pricing', JSON.stringify(store));
+        } catch {}
+      }
+      
+      setProductForm({ name: '', category: categories?.[0]?.slug || '', price: '', description: '', images: [], isUpsell: false, isBestSeller: false, bestSellerRank: '', promoPrice: '', sizes: [], gender: 'unisex', colors: [], dynamicBySize: false, sizePricing: {} });
       setEditingProduct(null);
-    } catch (error) {
-      toast({ variant: "destructive", title: "Erro", description: "Não foi possível salvar." });
+    } catch (error: any) {
+      const desc =
+        typeof error?.message === "string"
+          ? error.message
+          : typeof error?.error?.message === "string"
+          ? error.error.message
+          : "Não foi possível salvar.";
+      toast({ variant: "destructive", title: "Erro ao salvar", description: desc });
     } finally {
       setIsAdding(false);
     }
@@ -331,9 +576,22 @@ export default function AdminPage() {
 
   const handleSaveCategory = async () => {
     try {
-      const slug = categoryForm.name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, '-').replace(/[^\w-]+/g, '');
+      const name = categoryForm.name.trim();
+      if (!name) {
+        toast({ variant: "destructive", title: "Erro", description: "Informe o nome da categoria." });
+        return;
+      }
+      const slug = name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, '-').replace(/[^\w-]+/g, '');
+      if (!slug) {
+        toast({ variant: "destructive", title: "Erro", description: "Nome inválido para gerar o identificador." });
+        return;
+      }
+      if (!editingCategory && categories.some(c => c.slug === slug)) {
+        toast({ variant: "destructive", title: "Já existe", description: "Esta categoria já está cadastrada." });
+        return;
+      }
       const dataToSave = {
-        name: categoryForm.name,
+        name: name,
         slug: slug,
       };
 
@@ -346,30 +604,36 @@ export default function AdminPage() {
       setCategoryForm({ name: '' });
       setEditingCategory(null);
       toast({ title: "Sucesso", description: "Categoria salva!" });
-    } catch (error) {
-      toast({ variant: "destructive", title: "Erro", description: "Erro ao salvar." });
+    } catch (error: any) {
+      const desc = error?.message || "Erro ao salvar.";
+      toast({ variant: "destructive", title: "Erro", description: desc });
     }
   };
 
   const handleSaveCoupon = async () => {
     try {
+      const parseNumber = (v: string) => unformatBRLStringToNumber(v);
       const data = {
         code: couponForm.code,
         discountType: couponForm.discountType,
-        discountValue: parseFloat(couponForm.discountValue),
-        active: couponForm.active
+        discountValue: parseNumber(couponForm.discountValue),
+        active: couponForm.active,
+        expiresAt: couponForm.expiresAt ? new Date(couponForm.expiresAt).toISOString() : null
       };
       if (editingCoupon) {
         await updateCoupon(editingCoupon.id, data);
       } else {
         await addCoupon(data);
       }
-      setCouponForm({ code: '', discountType: 'percentage', discountValue: '', active: true });
+      setCouponForm({ code: '', discountType: 'percentage', discountValue: '', active: true, expiresAt: '' });
       setEditingCoupon(null);
       const validade = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString('pt-BR');
       toast({ title: "Sucesso", description: `Cupom criado. Validade: ${validade}` });
-    } catch (e) {
-      toast({ variant: "destructive", title: "Erro", description: "Erro ao salvar cupom." });
+    } catch (e: any) {
+      const msg = (typeof e?.message === 'string' && e.message) ? e.message :
+        (typeof e?.error?.message === 'string' && e.error.message) ? e.error.message :
+        'Erro ao salvar cupom.';
+      toast({ variant: "destructive", title: "Erro", description: msg });
     }
   };
 
@@ -412,19 +676,151 @@ export default function AdminPage() {
       reader.readAsText(file);
     }
   };
+  
+  const handleSeedReviews = async () => {
+    try {
+      const firstNames = ['Ana', 'Maria', 'João', 'Pedro', 'Laura', 'Luiza', 'Mariana', 'Rafael', 'Carolina', 'Isabela', 'Sofia', 'Gabriela', 'Beatriz', 'Paula', 'Rafaela', 'Clara', 'Valentina', 'Bruna', 'Patrícia', 'Alice', 'Helena', 'Manuela', 'Vitória', 'Miguel', 'Guilherme', 'Henrique', 'Eduardo', 'Lucas', 'Matheus'];
+      const middleNames = ['Clara', 'Fernanda', 'Eduarda', 'Miguel', 'Sofia', 'Henrique', 'Valentina', 'Carla', 'Camila', 'Isadora', 'Nicole', 'Yasmin', 'Antônio', 'José', 'Luiz', 'Felipe', 'Caio', 'Heitor', 'Álvaro', 'Otávio'];
+      const connectors = ['da', 'de', 'do', 'dos', 'das'];
+      const lastNames = ['Silva', 'Souza', 'Oliveira', 'Santos', 'Pereira', 'Almeida', 'Ferreira', 'Rodrigues', 'Gomes', 'Carvalho', 'Araújo', 'Barbosa', 'Costa', 'Lima', 'Ribeiro', 'Martins', 'Rocha', 'Dias', 'Teixeira', 'Melo', 'Monteiro', 'Azevedo', 'Batista', 'Machado'];
+      const messages = [
+        'Chegou certinho e muito rápido. Tecido macio, amei!',
+        'Qualidade ótima, exatamente como nas fotos.',
+        'Atendimento excelente e produto impecável.',
+        'Fiquei encantada, muito delicado e bem feito.',
+        'Valeu cada centavo, super recomendo!',
+        'Meu bebê ficou lindo, material é muito confortável.',
+        'Cor fiel e acabamento perfeito, voltarei a comprar.',
+        'Tamanho certinho e sem cheiro, aprovado.',
+        'Presenteei uma amiga e ela amou, embalagem bonita.',
+        'Macio, não irrita a pele e esquenta na medida.',
+        'Comprei o kit e veio tudo certinho, muito prático.',
+        'Atendimento pelo Whats foi rápido, tirou minhas dúvidas.',
+        'Gostei muito, caiu super bem no bebê.',
+        'Produto de qualidade, vou comprar outras cores.',
+        'Meu pedido chegou antes do prazo, nota 10.',
+        'Design lindo e muito confortável.'
+      ];
+      const pick = (arr: string[]) => arr[Math.floor(Math.random() * arr.length)];
+      const makeName = () => {
+        const parts: string[] = [];
+        parts.push(pick(firstNames));
+        if (Math.random() < 0.8) parts.push(pick(middleNames));
+        if (Math.random() < 0.5) parts.push(pick(connectors));
+        parts.push(pick(lastNames));
+        if (Math.random() < 0.35) {
+          parts.push(pick(connectors));
+          parts.push(pick(lastNames));
+        }
+        return parts.join(' ');
+      };
+      const rows: any[] = [];
+      for (const p of products) {
+        const target = 12 + Math.floor(Math.random() * 16); // 12..27
+        for (let i = 0; i < target; i++) {
+          const fullName = makeName();
+          const comment = messages[Math.floor(Math.random()*messages.length)];
+          const rating = Math.random() < 0.8 ? 5 : (Math.random() < 0.9 ? 4 : 3);
+          rows.push({ product_id: p.id, name: fullName, rating, comment });
+        }
+      }
+      if (rows.length > 0) {
+        const { error } = await supabase.from('reviews').insert(rows);
+        if (error) throw error;
+      }
+      toast({ title: "Comentários criados", description: "Avaliações adicionadas de forma realista em vários produtos." });
+    } catch (e) {
+      try {
+        const firstNames = ['Ana', 'Maria', 'João', 'Pedro', 'Laura', 'Luiza', 'Mariana', 'Rafael', 'Carolina', 'Isabela', 'Sofia', 'Gabriela', 'Beatriz', 'Paula', 'Rafaela', 'Clara', 'Valentina', 'Bruna', 'Patrícia', 'Alice', 'Helena', 'Manuela', 'Vitória', 'Miguel', 'Guilherme', 'Henrique', 'Eduardo', 'Lucas', 'Matheus'];
+        const middleNames = ['Clara', 'Fernanda', 'Eduarda', 'Miguel', 'Sofia', 'Henrique', 'Valentina', 'Carla', 'Camila', 'Isadora', 'Nicole', 'Yasmin', 'Antônio', 'José', 'Luiz', 'Felipe', 'Caio', 'Heitor', 'Álvaro', 'Otávio'];
+        const connectors = ['da', 'de', 'do', 'dos', 'das'];
+        const lastNames = ['Silva', 'Souza', 'Oliveira', 'Santos', 'Pereira', 'Almeida', 'Ferreira', 'Rodrigues', 'Gomes', 'Carvalho', 'Araújo', 'Barbosa', 'Costa', 'Lima', 'Ribeiro', 'Martins', 'Rocha', 'Dias', 'Teixeira', 'Melo', 'Monteiro', 'Azevedo', 'Batista', 'Machado'];
+        const messages = [
+          'Chegou certinho e muito rápido. Tecido macio, amei!',
+          'Qualidade ótima, exatamente como nas fotos.',
+          'Atendimento excelente e produto impecável.',
+          'Fiquei encantada, muito delicado e bem feito.',
+          'Valeu cada centavo, super recomendo!',
+          'Meu bebê ficou lindo, material é muito confortável.',
+          'Cor fiel e acabamento perfeito, voltarei a comprar.',
+          'Tamanho certinho e sem cheiro, aprovado.',
+          'Presenteei uma amiga e ela amou, embalagem bonita.',
+          'Macio, não irrita a pele e esquenta na medida.',
+          'Comprei o kit e veio tudo certinho, muito prático.',
+          'Atendimento pelo Whats foi rápido, tirou minhas dúvidas.',
+          'Gostei muito, caiu super bem no bebê.',
+          'Produto de qualidade, vou comprar outras cores.',
+          'Meu pedido chegou antes do prazo, nota 10.',
+          'Design lindo e muito confortável.'
+        ];
+        const pick = (arr: string[]) => arr[Math.floor(Math.random() * arr.length)];
+        const makeName = () => {
+          const parts: string[] = [];
+          parts.push(pick(firstNames));
+          if (Math.random() < 0.8) parts.push(pick(middleNames));
+          if (Math.random() < 0.5) parts.push(pick(connectors));
+          parts.push(pick(lastNames));
+          if (Math.random() < 0.35) {
+            parts.push(pick(connectors));
+            parts.push(pick(lastNames));
+          }
+          return parts.join(' ');
+        };
+        const grouped: Record<string, { name: string; rating: number; comment: string; createdAt: string }[]> = {};
+        for (const p of products) {
+          const target = 12 + Math.floor(Math.random() * 16);
+          const pid = String(p.id);
+          grouped[pid] = grouped[pid] || [];
+          for (let i = 0; i < target; i++) {
+            const fullName = makeName();
+            const comment = messages[Math.floor(Math.random()*messages.length)];
+            const rating = Math.random() < 0.8 ? 5 : (Math.random() < 0.9 ? 4 : 3);
+            grouped[pid].push({ name: fullName, rating, comment, createdAt: new Date().toISOString() });
+          }
+        }
+        localStorage.setItem('nenem_backup_reviews', JSON.stringify(grouped));
+        toast({ title: "Comentários criados localmente", description: "Banco indisponível. Use o site normalmente; as avaliações já aparecem." });
+      } catch {
+        toast({ variant: "destructive", title: "Erro ao gerar comentários", description: "Verifique a conexão com o banco. Posso tentar novamente." });
+      }
+    }
+  };
 
   const startEditProduct = (product: any) => {
     setEditingProduct(product);
     setProductForm({
       name: product.name,
       category: product.category,
-      price: product.price.toString(),
-      promoPrice: product.promoPrice?.toString() || '',
+      price: formatNumberToBRLString(Number(product.price || 0)),
+      promoPrice: product.promoPrice != null ? formatNumberToBRLString(Number(product.promoPrice)) : '',
       description: product.description || '',
-      imageUrl: product.images?.[0] || '',
+      images: product.images || [],
       isUpsell: product.isUpsell || false,
-      sizes: product.sizes || [],
+      isBestSeller: product.isBestSeller || false,
+      bestSellerRank: product.bestSellerRank != null ? String(product.bestSellerRank) : '',
+      sizes: sortSizes(product.sizes || []),
+      gender: product.gender || 'unisex',
+      colors: product.colors || [],
+      dynamicBySize: product.category === 'conjuntos-fleece',
+      sizePricing: (() => {
+        try {
+          const raw = localStorage.getItem('nenem_size_pricing');
+          const store = raw ? JSON.parse(raw) : {};
+          const entry = store[product.id] || store[product.name];
+          if (!entry) return {};
+          const out: Record<string, { price?: string; promo?: string }> = {};
+          for (const [sz, vals] of Object.entries(entry)) {
+            const v: any = vals;
+            out[sz] = {
+              price: formatNumberToBRLString(Number(v.price || 0)),
+              promo: v.promo != null ? formatNumberToBRLString(Number(v.promo)) : undefined,
+            };
+          }
+          return out;
+        } catch { return {}; }
+      })(),
     });
+    setProductDialogOpen(true);
   };
 
   return (
@@ -459,7 +855,7 @@ export default function AdminPage() {
           }
         }
       `}</style>
-      <div className="container mx-auto px-4">
+      <div className="container-standard">
         <div className="flex flex-col md:flex-row md:items-center gap-2 text-primary font-bold text-sm mb-6 uppercase tracking-widest">
           <div className="flex items-center gap-2">
             <LayoutDashboard className="w-5 h-5" />
@@ -493,13 +889,21 @@ export default function AdminPage() {
           <TabsContent value="produtos" className="space-y-6 outline-none">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
               <h2 className="text-xl md:text-2xl font-bold">Gestão de Catálogo</h2>
-              <Dialog>
+              <Dialog open={productDialogOpen} onOpenChange={setProductDialogOpen}>
                   <DialogTrigger asChild>
-                    <Button size="lg" className="w-full md:w-auto rounded-2xl gap-2 font-bold shadow-lg shadow-primary/20 h-12" onClick={() => {setEditingProduct(null); setProductForm({name:'', category: categories?.[0]?.slug || '', price:'', description:'', imageUrl:'', isUpsell: false, promoPrice: '', sizes: []})}}>
+                    <Button
+                      size="lg"
+                      className="w-full md:w-auto rounded-2xl gap-2 font-bold shadow-lg shadow-primary/20 h-12"
+                      onClick={() => {
+                        setEditingProduct(null);
+                        setProductForm({name:'', category: categories?.[0]?.slug || '', price:'', description:'', images: [], isUpsell: false, isBestSeller: false, bestSellerRank: '', promoPrice: '', sizes: ['P','M','G'], gender: 'unisex', colors: [], dynamicBySize: false, sizePricing: {}});
+                        setProductDialogOpen(true);
+                      }}
+                    >
                       <PlusCircle className="w-5 h-5" /> Novo Produto
                     </Button>
                   </DialogTrigger>
-                <DialogContent className="w-[95vw] sm:max-w-[650px] h-[90vh] sm:h-auto max-h-[90vh] flex flex-col rounded-3xl p-0 overflow-hidden shadow-2xl border-none !fixed !top-[50%] !left-[50%] !-translate-x-1/2 !-translate-y-1/2 z-[1001]">
+                <DialogContent className="w-[95vw] sm:max-w-[650px] h-[90vh] sm:h-auto max-h-[90vh] flex flex-col rounded-3xl p-0 overflow-hidden shadow-2xl border-none !fixed !top-[50%] !left-[50%] !-translate-x-1/2 !-translate-y-1/2">
                   <DialogHeader className="p-4 md:p-6 pb-2 md:pb-4 border-b bg-white z-30 shrink-0 text-left">
                     <DialogTitle className="text-xl md:text-2xl font-bold text-primary flex items-center gap-2">
                       {editingProduct ? <Pencil className="w-5 h-5 md:w-6 md:h-6" /> : <PlusCircle className="w-5 h-5 md:w-6 md:h-6" />}
@@ -519,7 +923,10 @@ export default function AdminPage() {
                           <select 
                             className="flex h-11 w-full rounded-xl border border-primary/10 bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20 transition-all"
                             value={productForm.category}
-                            onChange={(e) => setProductForm({...productForm, category: e.target.value})}
+                            onChange={(e) => {
+                              const category = e.target.value;
+                              applyCategoryDefaults(category);
+                            }}
                           >
                             <option value="">Selecione...</option>
                             {categories.map(cat => (
@@ -527,46 +934,118 @@ export default function AdminPage() {
                             ))}
                           </select>
                         </div>
+                        <div className="space-y-2">
+                          <Label className="text-[10px] md:text-xs font-bold uppercase tracking-wider text-muted-foreground">Gênero</Label>
+                          <select 
+                            className="flex h-11 w-full rounded-xl border border-primary/10 bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20 transition-all"
+                            value={productForm.gender}
+                            onChange={(e) => setProductForm({...productForm, gender: e.target.value as any})}
+                          >
+                            <option value="unisex">Unissex</option>
+                            <option value="feminino">Feminino</option>
+                            <option value="masculino">Masculino</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-3 bg-white p-4 rounded-2xl border border-primary/10 shadow-sm">
+                        <Checkbox 
+                          id="isBestSeller" 
+                          checked={productForm.isBestSeller} 
+                          onCheckedChange={(checked) => setProductForm({...productForm, isBestSeller: !!checked})} 
+                          className="w-5 h-5 rounded-md border-primary/20 data-[state=checked]:bg-primary"
+                        />
+                        <Label htmlFor="isBestSeller" className="font-bold text-primary flex items-center gap-2 cursor-pointer text-xs md:text-sm">
+                          Destacar em “Mais Vendidos”
+                        </Label>
+                        <div className="flex items-center gap-2 ml-auto">
+                          <Label className="text-[10px] md:text-xs font-bold uppercase tracking-wider text-muted-foreground">Posição</Label>
+                          <Input
+                            value={productForm.bestSellerRank}
+                            onChange={(e) => setProductForm({ ...productForm, bestSellerRank: e.target.value.replace(/[^\d]/g, '') })}
+                            className="rounded-xl h-9 w-20"
+                            placeholder="1"
+                          />
+                        </div>
                       </div>
 
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                           <Label className="text-[10px] md:text-xs font-bold uppercase tracking-wider text-muted-foreground">Preço (R$)</Label>
-                          <Input type="number" step="0.01" value={productForm.price} onChange={(e) => setProductForm({...productForm, price: e.target.value})} className="rounded-xl border-primary/10 h-11" placeholder="0,00" />
+                          <Input 
+                            type="text" 
+                            inputMode="numeric"
+                            value={productForm.price} 
+                            onChange={(e) => {
+                              const digits = e.target.value.replace(/\D/g, '');
+                              const formatted = formatDigitsToBRL(digits);
+                              setProductForm({...productForm, price: formatted});
+                            }} 
+                            className="rounded-xl border-primary/10 h-11" 
+                            disabled={productForm.dynamicBySize}
+                            placeholder="0,00" 
+                          />
+                          {productForm.dynamicBySize && (
+                            <p className="text-[10px] text-muted-foreground">Preço calculado automaticamente pelo tamanho selecionado.</p>
+                          )}
                         </div>
                         <div className="space-y-2">
                           <Label className="text-[10px] md:text-xs font-bold uppercase tracking-wider text-muted-foreground">Promo (Opcional)</Label>
-                          <Input type="number" step="0.01" value={productForm.promoPrice} onChange={(e) => setProductForm({...productForm, promoPrice: e.target.value})} className="rounded-xl border-primary/10 h-11 text-green-600 font-bold" placeholder="0,00" />
+                          <Input 
+                            type="text" 
+                            inputMode="numeric"
+                            value={productForm.promoPrice} 
+                            onChange={(e) => {
+                              const digits = e.target.value.replace(/\D/g, '');
+                              const formatted = formatDigitsToBRL(digits);
+                              setProductForm({...productForm, promoPrice: formatted});
+                            }} 
+                            className="rounded-xl border-primary/10 h-11 text-green-600 font-bold" 
+                            disabled={productForm.dynamicBySize}
+                            placeholder="0,00" 
+                          />
+                          {productForm.dynamicBySize && (
+                            <p className="text-[10px] text-muted-foreground">Promo calculada automaticamente pelo tamanho selecionado.</p>
+                          )}
                         </div>
                       </div>
 
                       <div className="space-y-2">
-                        <Label className="text-[10px] md:text-xs font-bold uppercase tracking-wider text-muted-foreground">Imagem do Produto</Label>
+                        <Label className="text-[10px] md:text-xs font-bold uppercase tracking-wider text-muted-foreground">Imagens do Produto</Label>
                         <div className="flex flex-col gap-3 p-3 md:p-4 border-2 border-dashed border-primary/10 rounded-2xl bg-white group hover:border-primary/30 transition-all">
-                          {productForm.imageUrl ? (
-                            <div className="relative aspect-video rounded-xl overflow-hidden border shadow-inner bg-muted/20">
-                              <Image src={productForm.imageUrl} alt="Preview" fill className="object-contain" />
-                              <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                <p className="text-white text-[10px] font-bold bg-black/50 px-3 py-1.5 rounded-full">Trocar Imagem</p>
-                              </div>
+                          {productForm.images.length > 0 ? (
+                            <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+                              {productForm.images.map((url, idx) => (
+                                <div key={url + idx} className="relative aspect-square rounded-xl overflow-hidden border shadow-inner bg-muted/20">
+                                  <Image src={url} alt={`Imagem ${idx+1}`} fill className="object-cover" />
+                                  <button
+                                    type="button"
+                                    className="absolute top-1 right-1 bg-black/60 text-white rounded-md p-1"
+                                    onClick={() => setProductForm(prev => ({...prev, images: prev.images.filter((_, i) => i !== idx)}))}
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                  </button>
+                                </div>
+                              ))}
                             </div>
                           ) : (
                             <div className="flex flex-col items-center py-4">
                               <div className="w-10 h-10 bg-primary/5 rounded-full flex items-center justify-center mb-2">
                                 <ImageIcon className="w-5 h-5 text-primary/40" />
                               </div>
-                              <p className="text-xs font-medium text-muted-foreground">Escolha uma foto da galeria</p>
+                              <p className="text-xs font-medium text-muted-foreground">Selecione uma ou mais fotos</p>
                             </div>
                           )}
                           
                           <div className="relative">
                             <Button variant="outline" className="w-full h-11 rounded-xl gap-2 font-bold border-primary/10 hover:bg-primary/5 transition-all text-xs" disabled={isUploading}>
                               {isUploading ? <Loader2 className="w-4 h-4 animate-spin text-primary" /> : <Upload className="w-4 h-4 text-primary" />}
-                              {productForm.imageUrl ? 'Alterar Foto' : 'Selecionar Foto'}
+                              {productForm.images.length > 0 ? 'Adicionar Mais Fotos' : 'Selecionar Fotos'}
                             </Button>
                             <input 
                               type="file" 
                               accept="image/*" 
+                              multiple
                               className="absolute inset-0 opacity-0 cursor-pointer" 
                               onChange={(e) => handleFileUpload(e, 'product')}
                               disabled={isUploading}
@@ -589,6 +1068,45 @@ export default function AdminPage() {
 
                       <div className="space-y-3 bg-white p-4 rounded-2xl border border-primary/10 shadow-sm">
                         <Label className="text-[10px] md:text-xs font-bold uppercase tracking-wider text-muted-foreground">Tamanhos Disponíveis</Label>
+                        {true && (
+                          <div className="flex items-center gap-2 bg-muted/30 px-3 py-2 rounded-lg border border-primary/10">
+                            <Checkbox 
+                              id="dynamicBySize" 
+                              checked={productForm.dynamicBySize} 
+                              onCheckedChange={(checked) => {
+                                const nextDyn = !!checked;
+                                let nextPrice = productForm.price;
+                                let nextPromo = productForm.promoPrice;
+                                if (nextDyn) {
+                                  const big = new Set(['4','6','8']);
+                                  const hasBig = productForm.sizes.some(s => big.has(s));
+                                  if (hasBig) {
+                                    nextPrice = '109,90';
+                                    nextPromo = '78,00';
+                                  } else {
+                                    nextPrice = '99,00';
+                                    nextPromo = '68,00';
+                                  }
+                                  const nextPricing = { ...productForm.sizePricing };
+                                  for (const s of productForm.sizes) {
+                                    if (!nextPricing[s]) {
+                                      if (['4','6','8'].includes(s)) nextPricing[s] = { price: '109,90', promo: '78,00' };
+                                      else if (['1','2','3'].includes(s)) nextPricing[s] = { price: '99,00', promo: '68,00' };
+                                      else nextPricing[s] = { price: nextPrice, promo: nextPromo };
+                                    }
+                                  }
+                                  setProductForm({ ...productForm, dynamicBySize: nextDyn, price: nextPrice, promoPrice: nextPromo, sizePricing: nextPricing });
+                                  return;
+                                }
+                                setProductForm({ ...productForm, dynamicBySize: nextDyn, price: nextPrice, promoPrice: nextPromo });
+                              }} 
+                              className="w-4 h-4 rounded border-primary/20 data-[state=checked]:bg-primary"
+                            />
+                            <Label htmlFor="dynamicBySize" className="text-[10px] md:text-xs font-bold cursor-pointer">
+                              Preço dinâmico por tamanho
+                            </Label>
+                          </div>
+                        )}
                         <div className="flex flex-wrap gap-1.5 md:gap-2">
                           {['RN', 'P', 'M', 'G', 'GG', '1', '2', '3', '4', '6', '8', '10', '12', '14'].map((size) => (
                             <div key={size} className="flex items-center gap-1.5 bg-muted/30 px-2 py-1 rounded-lg border border-primary/5">
@@ -596,15 +1114,103 @@ export default function AdminPage() {
                                 id={`size-${size}`} 
                                 checked={productForm.sizes.includes(size)} 
                                 onCheckedChange={(checked) => {
-                                  if (checked) {
-                                    setProductForm({ ...productForm, sizes: [...productForm.sizes, size] });
-                                  } else {
-                                    setProductForm({ ...productForm, sizes: productForm.sizes.filter(s => s !== size) });
+                                  const next = checked
+                                    ? sortSizes([...productForm.sizes, size])
+                                    : sortSizes(productForm.sizes.filter(s => s !== size));
+                                  let nextPrice = productForm.price;
+                                  let nextPromo = productForm.promoPrice;
+                                  if (productForm.dynamicBySize) {
+                                    const small = new Set(['1','2','3']);
+                                    const big = new Set(['4','6','8']);
+                                    const hasBig = next.some(s => big.has(s));
+                                    const onlySmall = next.every(s => small.has(s)) && next.length > 0;
+                                    if (hasBig) {
+                                      nextPrice = '109,90';
+                                      nextPromo = '78,00';
+                                    } else if (onlySmall) {
+                                      nextPrice = '99,00';
+                                      nextPromo = '68,00';
+                                    }
+                                    const nextPricing = { ...productForm.sizePricing };
+                                    if (checked) {
+                                      if (!nextPricing[size]) {
+                                        if (['4','6','8'].includes(size)) nextPricing[size] = { price: '109,90', promo: '78,00' };
+                                        else if (['1','2','3'].includes(size)) nextPricing[size] = { price: '99,00', promo: '68,00' };
+                                        else nextPricing[size] = { price: nextPrice, promo: nextPromo };
+                                      }
+                                    } else {
+                                      delete nextPricing[size];
+                                    }
+                                    setProductForm({ ...productForm, sizes: next, price: nextPrice, promoPrice: nextPromo, sizePricing: nextPricing });
+                                    return;
                                   }
+                                  setProductForm({ ...productForm, sizes: next, price: nextPrice, promoPrice: nextPromo });
                                 }}
                                 className="w-3.5 h-3.5 rounded border-primary/20 data-[state=checked]:bg-primary"
                               />
                               <Label htmlFor={`size-${size}`} className="text-[10px] md:text-xs font-bold cursor-pointer">{size}</Label>
+                            </div>
+                          ))}
+                        </div>
+                        {productForm.dynamicBySize && productForm.sizes.length > 0 && (
+                          <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            {sortSizes(productForm.sizes).map((s) => (
+                              <div key={s} className="bg-white border border-primary/10 rounded-xl p-3">
+                                <div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">Tamanho {s}</div>
+                                <div className="grid grid-cols-2 gap-2">
+                                  <div className="space-y-1">
+                                    <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Preço</Label>
+                                    <Input
+                                      value={productForm.sizePricing[s]?.price || ''}
+                                      onChange={(e) => {
+                                        const digits = e.target.value.replace(/\D/g, '');
+                                        const formatted = formatDigitsToBRL(digits);
+                                        const nextPricing = { ...productForm.sizePricing, [s]: { ...(productForm.sizePricing[s] || {}), price: formatted } };
+                                        setProductForm({ ...productForm, sizePricing: nextPricing });
+                                      }}
+                                      className="rounded-xl h-11"
+                                      placeholder="0,00"
+                                    />
+                                  </div>
+                                  <div className="space-y-1">
+                                    <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Promo</Label>
+                                    <Input
+                                      value={productForm.sizePricing[s]?.promo || ''}
+                                      onChange={(e) => {
+                                        const digits = e.target.value.replace(/\D/g, '');
+                                        const formatted = formatDigitsToBRL(digits);
+                                        const nextPricing = { ...productForm.sizePricing, [s]: { ...(productForm.sizePricing[s] || {}), promo: formatted } };
+                                        setProductForm({ ...productForm, sizePricing: nextPricing });
+                                      }}
+                                      className="rounded-xl h-11"
+                                      placeholder="0,00"
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="space-y-3 bg-white p-4 rounded-2xl border border-primary/10 shadow-sm">
+                        <Label className="text-[10px] md:text-xs font-bold uppercase tracking-wider text-muted-foreground">Cores</Label>
+                        <div className="flex flex-wrap gap-1.5 md:gap-2">
+                          {['Amarelo','Azul','Azul Marinho','Azul Pó','Bege','Branco','Off White','Creme','Caramelo','Marrom','Preto','Cinza','Cinza Claro','Cinza Escuro','Chumbo','Lavanda','Lilás','Rosa','Goiaba','Verde','Verde Água','Verde Menta','Vermelho','Vermelho Melancia'].map((cor) => (
+                            <div key={cor} className="flex items-center gap-1.5 bg-muted/30 px-2 py-1 rounded-lg border border-primary/5">
+                              <Checkbox 
+                                id={`cor-${cor}`} 
+                                checked={productForm.colors.includes(cor)}
+                                onCheckedChange={(checked) => {
+                                  if (checked) {
+                                    setProductForm({ ...productForm, colors: [...productForm.colors, cor] });
+                                  } else {
+                                    setProductForm({ ...productForm, colors: productForm.colors.filter(c => c !== cor) });
+                                  }
+                                }}
+                                className="w-3.5 h-3.5 rounded border-primary/20 data-[state=checked]:bg-primary"
+                              />
+                              <Label htmlFor={`cor-${cor}`} className="text-[10px] md:text-xs font-bold cursor-pointer">{cor}</Label>
                             </div>
                           ))}
                         </div>
@@ -631,6 +1237,36 @@ export default function AdminPage() {
                 </DialogContent>
               </Dialog>
             </div>
+            
+            <div className="bg-white border rounded-2xl p-4 md:p-6 shadow-sm">
+              <h3 className="text-lg font-bold mb-2">Guia rápido</h3>
+              <Accordion type="single" collapsible className="w-full">
+                <AccordionItem value="item-1">
+                  <AccordionTrigger className="text-sm font-bold">Cadastrar produto</AccordionTrigger>
+                  <AccordionContent className="text-sm text-muted-foreground">
+                    Informe nome, escolha categoria, defina preço ou ative preço por tamanho. Adicione pelo menos uma foto e salve.
+                  </AccordionContent>
+                </AccordionItem>
+                <AccordionItem value="item-2">
+                  <AccordionTrigger className="text-sm font-bold">Preço por tamanho</AccordionTrigger>
+                  <AccordionContent className="text-sm text-muted-foreground">
+                    Ative “Preço dinâmico por tamanho” e preencha os valores de cada tamanho. O site mostra o menor preço como “A partir de”.
+                  </AccordionContent>
+                </AccordionItem>
+                <AccordionItem value="item-3">
+                  <AccordionTrigger className="text-sm font-bold">Fotos do produto</AccordionTrigger>
+                  <AccordionContent className="text-sm text-muted-foreground">
+                    Coloque fotos claras. A primeira vira a principal. Você pode adicionar mais fotos no botão “Selecionar Fotos”.
+                  </AccordionContent>
+                </AccordionItem>
+                <AccordionItem value="item-4">
+                  <AccordionTrigger className="text-sm font-bold">Cupom e capa do site</AccordionTrigger>
+                  <AccordionContent className="text-sm text-muted-foreground">
+                    Em “Site”, edite textos e imagem da capa. Controle o botão “Cupom Aqui” no carrinho com a opção “Mostrar botão”.
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
+            </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 mb-8">
               <div className="bg-white p-4 md:p-6 rounded-3xl shadow-sm border border-primary/5 flex items-center justify-between">
@@ -643,35 +1279,36 @@ export default function AdminPage() {
                 </div>
               </div>
 
-              <div className="bg-white p-4 md:p-6 rounded-3xl shadow-sm border border-primary/5 flex flex-col md:flex-row items-start md:items-center justify-between col-span-1 md:col-span-2 gap-4">
-                <div className="flex flex-col md:flex-row gap-4 md:gap-8 items-start md:items-center w-full">
-                  <div className="flex-grow">
-                    <p className="text-[10px] text-muted-foreground font-medium mb-1 uppercase tracking-wider">Sincronização</p>
-                    <div className="flex gap-2 mt-2">
-                      <Button variant="default" size="sm" className="rounded-xl gap-2 text-[10px] md:text-xs font-bold bg-green-600 hover:bg-green-700 h-9" onClick={handleSync} disabled={isSyncing}>
-                        {isSyncing ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />} 
-                        Sincronizar
-                      </Button>
-                      <Button variant="outline" size="sm" className="rounded-xl gap-2 text-[10px] md:text-xs font-bold border-primary/20 text-primary h-9" onClick={handleCreateBackup}>
-                        <ShieldCheck className="w-3 h-3" /> Backup
-                      </Button>
-                    </div>
+              <div className="bg-white p-4 md:p-6 rounded-3xl shadow-sm border border-primary/5 flex items-center justify-between col-span-1 md:col-span-2">
+                <div className="w-full">
+                  <p className="text-[10px] text-muted-foreground font-medium mb-1 uppercase tracking-wider">Versões de Dados</p>
+                  <div className="flex gap-2 mt-2">
+                    <Button variant="default" size="sm" className="rounded-xl gap-2 text-[10px] md:text-xs font-bold h-9 bg-primary" onClick={handleCreateBackup}>
+                      <ShieldCheck className="w-3 h-3" /> Salvar versão
+                    </Button>
+                    <Button variant="outline" size="sm" className="rounded-xl gap-2 text-[10px] md:text-xs font-bold h-9" onClick={handleRestoreBackup} disabled={isRestoring}>
+                      {isRestoring ? <Loader2 className="w-3 h-3 animate-spin" /> : <Undo2 className="w-3 h-3" />} 
+                      Restaurar versão
+                    </Button>
+                    <Button variant="outline" size="sm" className="rounded-xl gap-2 text-[10px] md:text-xs font-bold h-9" onClick={handleSeedReviews}>
+                      <MessageCircle className="w-3 h-3" /> Gerar comentários
+                    </Button>
                   </div>
-                  
-                  <div className="md:border-l md:pl-8 w-full md:w-auto">
-                    <p className="text-[10px] text-muted-foreground font-medium mb-1 uppercase tracking-wider">Ações de Dados</p>
-                    <div className="flex gap-2 mt-2">
-                      <Button variant="outline" size="sm" className="flex-1 md:flex-none rounded-xl gap-2 text-[10px] font-bold h-9" onClick={handleExport}>
-                        <Download className="w-3 h-3" /> Exportar
-                      </Button>
-                      <div className="relative flex-1 md:flex-none">
-                        <Button variant="ghost" size="sm" className="w-full rounded-xl gap-2 text-[10px] font-bold h-9 bg-muted/50">
-                          <Upload className="w-3 h-3" /> Importar
-                        </Button>
-                        <input type="file" accept=".json" onChange={handleImport} className="absolute inset-0 opacity-0 cursor-pointer" />
-                      </div>
-                    </div>
-                  </div>
+                </div>
+              </div>
+              
+              <div className="bg-white p-4 md:p-6 rounded-3xl shadow-sm border border-primary/5 flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] text-muted-foreground font-medium mb-1 uppercase tracking-wider">Novas Avaliações</p>
+                  <h3 className="text-2xl font-bold">{newReviewsCount}</h3>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" className="rounded-xl h-9 text-xs font-bold" onClick={fetchNewReviews}>
+                    Atualizar
+                  </Button>
+                  <Button variant="default" size="sm" className="rounded-xl h-9 text-xs font-bold" onClick={markReviewsAsSeen}>
+                    Marcar como lidas
+                  </Button>
                 </div>
               </div>
             </div>
@@ -816,9 +1453,19 @@ export default function AdminPage() {
                           <TableCell className="py-4 pl-4 md:pl-8">
                             <div className="flex flex-col">
                               <span className="font-black text-primary text-sm tracking-tight">{order.order_code}</span>
-                              <span className="font-bold text-xs text-foreground mt-0.5">{order.customer_name}</span>
+                              <span className="font-bold text-xs text-foreground mt-0.5">{order.customer_name || 'SEM LOGIN'}</span>
                               <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground mt-1">
                                 <Phone className="w-3 h-3 text-green-600" /> {order.customer_whatsapp}
+                              </div>
+                              <div className="text-[10px] text-muted-foreground mt-1">
+                                {(() => {
+                                  const dt = order.updated_at || order.created_at;
+                                  try {
+                                    return new Date(dt).toLocaleString('pt-BR');
+                                  } catch {
+                                    return '';
+                                  }
+                                })()}
                               </div>
                             </div>
                           </TableCell>
@@ -873,17 +1520,45 @@ export default function AdminPage() {
           <TabsContent value="categorias" className="space-y-6 outline-none">
              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                <h2 className="text-xl md:text-2xl font-bold">Categorias</h2>
-               <div className="flex gap-2 w-full sm:w-auto">
-                 <Input 
-                   placeholder="Nova categoria..." 
-                   value={categoryForm.name} 
-                   onChange={(e) => setCategoryForm({...categoryForm, name: e.target.value})}
-                   className="rounded-xl h-11"
-                 />
-                 <Button onClick={handleSaveCategory} className="rounded-xl font-bold h-11 px-4 shrink-0">
-                   <PlusCircle className="w-4 h-4 sm:mr-2" /> <span className="hidden sm:inline">{editingCategory ? 'Atualizar' : 'Adicionar'}</span>
-                 </Button>
-               </div>
+               <Dialog open={categoryDialogOpen} onOpenChange={setCategoryDialogOpen}>
+                 <DialogTrigger asChild>
+                   <Button 
+                     onClick={() => {
+                       setEditingCategory(null);
+                       setCategoryForm({ name: '' });
+                       setCategoryDialogOpen(true);
+                     }}
+                     className="rounded-xl font-bold h-11 px-4 shrink-0"
+                   >
+                     <PlusCircle className="w-4 h-4 sm:mr-2" /> Nova Categoria
+                   </Button>
+                 </DialogTrigger>
+                 <DialogContent className="w-[92vw] max-w-[400px] rounded-2xl p-0 overflow-hidden border-none">
+                   <DialogHeader className="p-4 border-b bg-white">
+                     <DialogTitle className="text-lg font-bold text-primary">
+                       {editingCategory ? 'Editar Categoria' : 'Nova Categoria'}
+                     </DialogTitle>
+                   </DialogHeader>
+                   <div className="p-4 space-y-3 bg-white">
+                     <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground ml-1">Nome</Label>
+                     <Input 
+                       placeholder="Ex: Saída de Maternidade" 
+                       value={categoryForm.name} 
+                       onChange={(e) => setCategoryForm({...categoryForm, name: e.target.value})}
+                       className="rounded-xl h-11"
+                     />
+                     <Button 
+                       onClick={async () => {
+                         await handleSaveCategory();
+                         setCategoryDialogOpen(false);
+                       }} 
+                       className="w-full rounded-xl font-bold h-11"
+                     >
+                       {editingCategory ? 'Salvar' : 'Criar Categoria'}
+                     </Button>
+                   </div>
+                 </DialogContent>
+               </Dialog>
              </div>
 
              <div className="bg-white rounded-[24px] md:rounded-[32px] shadow-xl border border-primary/5 p-4 md:p-6">
@@ -895,7 +1570,7 @@ export default function AdminPage() {
                         <p className="text-[9px] md:text-[10px] text-muted-foreground truncate">/{cat.slug}</p>
                       </div>
                       <div className="flex gap-1">
-                        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={() => {setEditingCategory(cat); setCategoryForm({name: cat.name})}}>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={() => {setEditingCategory(cat); setCategoryForm({name: cat.name}); setCategoryDialogOpen(true);}}>
                           <Pencil className="w-3.5 h-3.5" />
                         </Button>
                         <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg hover:text-red-500" onClick={() => deleteCategory(cat.id)}>
@@ -936,10 +1611,29 @@ export default function AdminPage() {
                   <div className="space-y-1">
                     <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground ml-2">Valor</Label>
                     <Input 
-                      type="number" 
-                      placeholder="0" 
+                      type="text" 
+                      inputMode="numeric"
+                      placeholder={couponForm.discountType === 'fixed' ? '0,00' : '0'}
                       value={couponForm.discountValue} 
-                      onChange={(e) => setCouponForm({...couponForm, discountValue: e.target.value})}
+                      onChange={(e) => {
+                        if (couponForm.discountType === 'fixed') {
+                          const digits = e.target.value.replace(/\D/g, '');
+                          const formatted = formatDigitsToBRL(digits);
+                          setCouponForm({...couponForm, discountValue: formatted});
+                        } else {
+                          const v = e.target.value.replace(/[^\d,]/g, '');
+                          setCouponForm({...couponForm, discountValue: v});
+                        }
+                      }}
+                      className="rounded-xl h-11"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground ml-2">Validade</Label>
+                    <Input 
+                      type="date" 
+                      value={couponForm.expiresAt} 
+                      onChange={(e) => setCouponForm({...couponForm, expiresAt: e.target.value})}
                       className="rounded-xl h-11"
                     />
                   </div>
@@ -961,7 +1655,7 @@ export default function AdminPage() {
                   <div className="space-y-1 mb-4">
                     <h4 className="text-base md:text-lg font-black text-primary tracking-tight truncate pr-8">{coupon.code}</h4>
                     <p className="text-xl md:text-2xl font-bold text-foreground">
-                      {coupon.discountType === 'percentage' ? `${coupon.discountValue}%` : `R$ ${coupon.discountValue.toFixed(2)}`}
+                      {coupon.discountType === 'percentage' ? `${coupon.discountValue}%` : `R$ ${formatNumberToBRLString(coupon.discountValue)}`}
                       <span className="text-[9px] md:text-[10px] text-muted-foreground ml-1 font-normal uppercase tracking-widest">OFF</span>
                     </p>
                     <div className="text-[10px] text-muted-foreground font-medium leading-tight">
@@ -969,11 +1663,7 @@ export default function AdminPage() {
                         Criado em: {coupon.createdAt ? new Date(coupon.createdAt).toLocaleDateString('pt-BR') : '-'}
                       </div>
                       <div>
-                        Validade: {(() => {
-                          const base = coupon.createdAt ? new Date(coupon.createdAt).getTime() : Date.now();
-                          const valMs = coupon.expiresAt ? new Date(coupon.expiresAt).getTime() : base + 30 * 24 * 60 * 60 * 1000;
-                          return new Date(valMs).toLocaleDateString('pt-BR');
-                        })()}
+                        Validade: {coupon.expiresAt ? new Date(coupon.expiresAt).toLocaleDateString('pt-BR') : '—'}
                       </div>
                     </div>
                   </div>
@@ -989,7 +1679,8 @@ export default function AdminPage() {
                           code: coupon.code,
                           discountType: coupon.discountType,
                           discountValue: coupon.discountValue.toString(),
-                          active: coupon.active
+                          active: coupon.active,
+                          expiresAt: coupon.expiresAt ? new Date(coupon.expiresAt).toISOString().slice(0,10) : ''
                         });
                       }}>
                         <Pencil className="w-3.5 h-3.5" />
@@ -1030,6 +1721,18 @@ export default function AdminPage() {
                  <div className="space-y-2">
                    <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Timer da Promoção</Label>
                    <Input type="datetime-local" value={settingsForm.promotionCountdown} onChange={(e) => setSettingsForm({...settingsForm, promotionCountdown: e.target.value})} className="rounded-xl h-11" />
+                 </div>
+                 
+                 <div className="flex items-center gap-2">
+                   <Checkbox 
+                     id="showCouponCTA"
+                     checked={settingsForm.showCouponCTA}
+                     onCheckedChange={(checked) => setSettingsForm({...settingsForm, showCouponCTA: !!checked})}
+                     className="w-4 h-4 rounded border-primary/20 data-[state=checked]:bg-primary"
+                   />
+                   <Label htmlFor="showCouponCTA" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                     Mostrar botão “Cupom Aqui” no carrinho
+                   </Label>
                  </div>
                </div>
 

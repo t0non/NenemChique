@@ -61,7 +61,7 @@ export default function VirtualFittingPage() {
 
   return (
     <div className="min-h-screen bg-[#FDF8FB] py-12">
-      <div className="container mx-auto px-4">
+      <div className="container-standard">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-10">
             <Badge className="mb-4 bg-primary/20 text-primary border-none rounded-full px-4 py-1">Exclusivo</Badge>
@@ -225,7 +225,15 @@ export default function VirtualFittingPage() {
                     <div className="overflow-hidden">
                       <p className="text-xs font-bold text-primary uppercase mb-1">{product.category}</p>
                       <h4 className="font-bold text-sm truncate leading-tight">{product.name}</h4>
-                      <p className="text-sm font-black text-foreground mt-1">R$ {product.price.toFixed(2)}</p>
+                      <p className="text-sm font-black text-foreground mt-1">
+                        {product.promoPrice ? (
+                          <>
+                            R$ {product.promoPrice.toFixed(2)} <span className="text-xs text-muted-foreground line-through ml-1">R$ {product.price.toFixed(2)}</span>
+                          </>
+                        ) : (
+                          <>R$ {product.price.toFixed(2)}</>
+                        )}
+                      </p>
                     </div>
                   </button>
                 ))}

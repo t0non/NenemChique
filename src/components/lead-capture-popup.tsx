@@ -6,12 +6,19 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { supabase } from '@/lib/supabase';
+import { formatPhoneBR, digitsOnlyPhone } from '@/lib/utils';
 
 export function LeadCapturePopup() {
+  if (typeof window !== 'undefined' && window.location.pathname.startsWith('/admin')) {
+    return null;
+  }
   const [isOpen, setIsOpen] = useState(false);
   const [submitted, setSubmitted] = useState(false);
-  const [email, setEmail] = useState('');
+  const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [couponCode, setCouponCode] = useState<string | null>(null);
 
   useEffect(() => {
     // Mostrar o popup após 15 segundos
@@ -25,18 +32,65 @@ export function LeadCapturePopup() {
     return () => clearTimeout(timer);
   }, []);
 
+  // Buscar um cupom ativo e não expirado
+  useEffect(() => {
+    const loadActiveCoupon = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('coupons')
+          .select('*')
+          .eq('active', true);
+        if (!error && data && data.length > 0) {
+          const now = Date.now();
+          const valid = data
+            .filter((c: any) => !c.expires_at || new Date(c.expires_at).getTime() >= now)
+            .sort((a: any, b: any) => {
+              const ad = a.created_at ? new Date(a.created_at).getTime() : 0;
+              const bd = b.created_at ? new Date(b.created_at).getTime() : 0;
+              return bd - ad;
+            });
+          if (valid.length > 0) {
+            setCouponCode(valid[0].code);
+          } else {
+            setCouponCode(null);
+          }
+        } else {
+          setCouponCode(null);
+        }
+      } catch {
+        setCouponCode(null);
+      }
+    };
+    loadActiveCoupon();
+  }, []);
+
+  useEffect(() => {
+    const openHandler = () => {
+      setIsOpen(true);
+    };
+    if (typeof window !== 'undefined') {
+      window.addEventListener('openLeadPopup', openHandler as EventListener);
+    }
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('openLeadPopup', openHandler as EventListener);
+      }
+    };
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email) return;
+    if (!name || !phone) return;
     
     setLoading(true);
     
     // Salvar no Supabase
     try {
       await supabase.from('leads').insert({
-        email: email,
+        name: name,
+        whatsapp: digitsOnlyPhone(phone),
         source: 'popup_discount',
-        data: { coupon: 'BEMVINDA10' }
+        data: { coupon: couponCode || null }
       });
     } catch (dbError) {
       // Silently fail or handle error gracefully
@@ -46,10 +100,7 @@ export function LeadCapturePopup() {
     setSubmitted(true);
     setLoading(false);
     
-    // Fechar após 3 segundos se tiver sucesso
-    setTimeout(() => {
-      setIsOpen(false);
-    }, 3000);
+    // Removido o fechamento automático para a pessoa poder copiar o cupom
   };
 
   const closePopup = () => {
@@ -92,11 +143,19 @@ export function LeadCapturePopup() {
                 <div className="space-y-2">
                   <p className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground/60 text-center mb-4">Onde enviamos seu cupom?</p>
                   <Input 
-                    type="email" 
-                    placeholder="Seu melhor e-mail" 
+                    type="text" 
+                    placeholder="Seu nome" 
                     required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="h-14 rounded-2xl border-muted bg-muted/20 px-6 text-lg focus:ring-primary"
+                  />
+                  <Input 
+                    type="tel" 
+                    placeholder="(00) 00000-0000"
+                    required
+                    value={phone}
+                    onChange={(e) => setPhone(formatPhoneBR(e.target.value))}
                     className="h-14 rounded-2xl border-muted bg-muted/20 px-6 text-lg focus:ring-primary"
                   />
                 </div>
@@ -117,12 +176,39 @@ export function LeadCapturePopup() {
                 </p>
               </form>
             ) : (
-              <div className="text-center py-6 animate-in zoom-in duration-500">
-                <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                  <CheckCircle2 className="w-10 h-10 text-green-500" />
+              <div className="text-center py-4 animate-in zoom-in duration-500">
+                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <CheckCircle2 className="w-8 h-8 text-green-500" />
                 </div>
-                <h3 className="text-2xl font-bold text-foreground mb-2">Cupom Enviado!</h3>
-                <p className="text-muted-foreground">Verifique seu e-mail em instantes. Boas compras!</p>
+                <h3 className="text-xl font-bold text-foreground mb-1">Parabéns! 🎉</h3>
+                <p className="text-muted-foreground text-sm mb-6">
+                  {couponCode ? 'Seu cupom de 10% foi liberado:' : 'Cadastro realizado com sucesso.'}
+                </p>
+                
+                {couponCode ? (
+                  <div className="bg-muted/30 border-2 border-dashed border-primary/20 rounded-2xl p-3 md:p-4 mb-6 relative group flex items-center justify-between gap-3">
+                    <span className="text-xl md:text-2xl font-black text-primary tracking-widest uppercase">{couponCode}</span>
+                    <button
+                      onClick={async () => {
+                        try {
+                          await navigator.clipboard.writeText(couponCode);
+                          setCopied(true);
+                          setTimeout(() => setCopied(false), 2000);
+                        } catch (_) {}
+                      }}
+                      className="px-3 py-2 rounded-xl bg-primary text-white text-[10px] font-bold uppercase tracking-widest hover:opacity-90"
+                    >
+                      {copied ? 'Copiado!' : 'Copiar'}
+                    </button>
+                  </div>
+                ) : null}
+
+                <Button 
+                  onClick={() => setIsOpen(false)}
+                  className="w-full h-12 rounded-full font-bold bg-pink-gradient border-none text-white"
+                >
+                  Começar a Comprar
+                </Button>
               </div>
             )}
           </div>

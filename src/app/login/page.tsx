@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
+import { formatPhoneBR, digitsOnlyPhone } from '@/lib/utils';
 
 export default function LoginPage() {
   const [name, setName] = useState('');
@@ -164,7 +165,7 @@ export default function LoginPage() {
                       placeholder="(00) 00000-0000" 
                       className="rounded-[20px] border-muted bg-muted/20 h-16 pl-14 text-lg focus:ring-primary"
                       value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
+                      onChange={(e) => setPhone(formatPhoneBR(e.target.value))}
                       required
                     />
                   </div>

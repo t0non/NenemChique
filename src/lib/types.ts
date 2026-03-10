@@ -8,9 +8,15 @@ export interface Product {
   category: string;
   images: string[];
   isUpsell?: boolean;
+  isBestSeller?: boolean;
+  bestSellerRank?: number;
   limitedStock?: boolean;
   stockCount?: number;
   sizes?: string[];
+  gender?: 'masculino' | 'feminino' | 'unisex';
+  colors?: string[];
+  createdAt?: string;
+  sizePricing?: Record<string, { price: number; promo?: number }>;
 }
 
 export interface Coupon {
@@ -37,4 +43,13 @@ export interface Category {
   id: string;
   name: string;
   slug: string;
+}
+
+export interface Review {
+  id: string;
+  productId: string;
+  name: string;
+  rating: number;
+  comment: string;
+  createdAt?: string;
 }

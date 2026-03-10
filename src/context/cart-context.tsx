@@ -20,7 +20,7 @@ interface CartContextType {
   isCartOpen: boolean;
   setIsCartOpen: (open: boolean) => void;
   couponApplied: string | null;
-  applyCoupon: (code: string) => boolean;
+  applyCoupon: (code: string) => Promise<boolean>;
   discountAmount: number;
   syncCartWithDB: () => Promise<void>;
   orderCode: string | null;
@@ -32,6 +32,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [couponApplied, setCouponApplied] = useState<string | null>(null);
+  const [appliedCouponMeta, setAppliedCouponMeta] = useState<{ type: 'percentage'|'fixed', value: number } | null>(null);
   const [orderCode, setOrderCode] = useState<string | null>(null);
   const { toast } = useToast();
 
@@ -39,9 +40,13 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     items.reduce((acc, item) => acc + item.price * item.quantity, 0),
   [items]);
 
-  const discountAmount = useMemo(() => 
-    couponApplied === "PRIMEIRACOMPRA" ? subtotalAmount * 0.10 : 0,
-  [subtotalAmount, couponApplied]);
+  const discountAmount = useMemo(() => {
+    if (!appliedCouponMeta) return 0;
+    if (appliedCouponMeta.type === 'percentage') {
+      return subtotalAmount * (appliedCouponMeta.value / 100);
+    }
+    return Math.min(appliedCouponMeta.value, subtotalAmount);
+  }, [subtotalAmount, appliedCouponMeta]);
 
   const totalAmount = useMemo(() => subtotalAmount - discountAmount, [subtotalAmount, discountAmount]);
   const itemCount = useMemo(() => items.reduce((acc, item) => acc + item.quantity, 0), [items]);
@@ -59,11 +64,11 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   // Sincronizar carrinho com o banco de dados (Tabela de Orders)
   const syncCartWithDB = async () => {
     const isLogged = typeof window !== 'undefined' && localStorage.getItem('nenem_is_logged') === 'true';
-    if (!isLogged || items.length === 0) return;
+    if (items.length === 0) return;
 
-    const userId = localStorage.getItem('nenem_user_id');
-    const userName = localStorage.getItem('nenem_user_name');
-    const userPhone = localStorage.getItem('nenem_user_phone');
+    const userId = isLogged ? localStorage.getItem('nenem_user_id') : null;
+    const userName = isLogged ? (localStorage.getItem('nenem_user_name') || '') : 'SEM LOGIN';
+    const userPhone = isLogged ? (localStorage.getItem('nenem_user_phone') || '') : '';
     
     let currentOrderCode = orderCode;
     if (!currentOrderCode) {
@@ -108,7 +113,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           item.id === product.id ? { ...item, quantity: item.quantity + quantity } : item
         );
       }
-      return [...prev, { ...product, quantity }];
+      const unitPrice = product.promoPrice ?? product.price;
+      return [...prev, { ...product, price: unitPrice, quantity }];
     });
     
     setIsCartOpen(true);
@@ -120,22 +126,37 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const clearCart = () => setItems([]);
 
-  const applyCoupon = (code: string) => {
-    if (code.toUpperCase() === "PRIMEIRACOMPRA") {
-      setCouponApplied(code.toUpperCase());
+  const applyCoupon = async (code: string) => {
+    const up = (code || '').trim().toUpperCase();
+    if (!up) return false;
+    try {
+      const { data, error } = await supabase
+        .from('coupons')
+        .select('*')
+        .eq('code', up)
+        .eq('active', true)
+        .limit(1);
+      if (error) throw error;
+      const found = data && data[0];
+      if (!found) {
+        toast({ variant: "destructive", title: "CUPOM INVÁLIDO", description: "Verifique o código e tente novamente." });
+        return false;
+      }
+      const exp = found.expires_at ? new Date(found.expires_at).getTime() : null;
+      const now = Date.now();
+      if (exp && exp < now) {
+        toast({ variant: "destructive", title: "CUPOM VENCIDO", description: "Este cupom não é mais válido." });
+        return false;
+      }
+      setCouponApplied(up);
+      setAppliedCouponMeta({ type: found.discount_type, value: Number(found.discount_value) });
       import('@/lib/confetti').then(m => m.dispararConfete()).catch(() => {});
-      toast({
-        title: "Cupom aplicado!",
-        description: "Você ganhou 10% de desconto na sua primeira compra. ✨",
-      });
+      toast({ title: "Cupom aplicado!", description: "Desconto aplicado ao total do pedido." });
       return true;
+    } catch (e) {
+      toast({ variant: "destructive", title: "Erro ao aplicar", description: "Não foi possível validar o cupom agora." });
+      return false;
     }
-    toast({
-      variant: "destructive",
-      title: "CUPOM INVALIDO",
-      description: "Verifique o código e tente novamente.",
-    });
-    return false;
   };
 
   return (

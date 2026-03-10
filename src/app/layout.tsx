@@ -4,12 +4,12 @@ import './globals.css';
 import {Navbar} from '@/components/navbar';
 import {Footer} from '@/components/footer';
 import {Toaster} from '@/components/ui/toaster';
-import { WhatsAppIcon } from '@/components/whatsapp-icon';
-import { Button } from '@/components/ui/button';
 import { CartProvider } from '@/context/cart-context';
 import { DataProvider } from '@/context/data-context';
 import { TopBanner } from '@/components/top-banner';
 import { FloatingCartButton } from '@/components/floating-cart-button';
+import { ClientLeadWrapper } from '@/components/client-lead-wrapper';
+import slide1 from '@/imagens/SLIDE (1).png';
 
 const instrumentSans = Instrument_Sans({
   subsets: ['latin'],
@@ -35,8 +35,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="pt-BR" className={`scroll-smooth ${instrumentSans.variable}`}>
+    <html lang="pt-BR" className={`scroll-smooth overflow-x-hidden ${instrumentSans.variable}`}>
       <head>
+        {process.env.NODE_ENV === 'production' ? <script src="/env.js" /> : null}
+        <link rel="icon" href="/favicon.png" type="image/png" sizes="32x32" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+        <meta name="application-name" content="Neném Chique" />
+        <meta name="apple-mobile-web-app-title" content="Neném Chique" />
+        <link rel="preload" as="image" href={slide1.src} />
         <link rel="preconnect" href="https://pkparxozauwbpckwplht.supabase.co" />
         <link rel="preconnect" href="https://picsum.photos" />
         <meta property="og:title" content="Neném Chique — Tricot hipoalergênico e curadoria de enxoval" />
@@ -68,25 +74,7 @@ export default function RootLayout({
             <main className="flex-grow">{children}</main>
             <Footer />
             <Toaster />
-            
-            {/* Floating Pulsing WhatsApp Button - Cor Verde Oficial */}
-            <div className="fixed bottom-4 right-2 z-50 group">
-              <div className="absolute bottom-full right-0 mb-4 w-64 bg-white p-4 rounded-3xl shadow-2xl border border-primary/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none animate-in fade-in slide-in-from-bottom-2 duration-300">
-                <p className="text-sm font-medium text-foreground leading-relaxed">
-                  Olá! 👋 Precisa de ajuda para escolher o tamanho ideal ou montar seu enxoval?
-                </p>
-                <div className="absolute bottom-[-8px] right-6 w-4 h-4 bg-white border-r border-b border-primary/5 rotate-45" />
-              </div>
-              <Button 
-                size="lg" 
-                className="bg-gradient-to-br from-emerald-500 to-green-500 hover:from-emerald-500 hover:to-green-600 text-white rounded-full h-14 w-14 shadow-xl shadow-emerald-300/40 ring-1 ring-white/40 ring-offset-2 ring-offset-emerald-100 transition-transform duration-200 ease-out hover:scale-105 active:scale-95 p-0 relative"
-                asChild
-              >
-                <a href="https://wa.me/5531999384130" target="_blank" rel="noopener noreferrer" className="flex items-center justify-center">
-                  <WhatsAppIcon className="w-8 h-8 fill-white" />
-                </a>
-              </Button>
-            </div>
+            <ClientLeadWrapper />
             {/* Floating Cart Button */}
             <FloatingCartButton />
           </CartProvider>

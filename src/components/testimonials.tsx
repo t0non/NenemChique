@@ -1,4 +1,4 @@
-
+ 
 "use client"
 
 import Image from 'next/image';
@@ -7,7 +7,36 @@ import { TESTIMONIALS } from '@/lib/data';
 import { Card, CardContent } from '@/components/ui/card';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious, type CarouselApi } from '@/components/ui/carousel';
 import logo from '@/imagens/logo.png';
+import googleIcon from '@/imagens/icone google.png';
 import { useEffect, useState } from 'react';
+
+const Avatar = ({ name }: { name: string }) => {
+  const getInitials = (name: string) => {
+    const names = name.split(' ');
+    if (names.length > 1) {
+      return `${names[0][0]}${names[names.length - 1][0]}`.toUpperCase();
+    }
+    return name.substring(0, 2).toUpperCase();
+  };
+
+  const COLORS = ['#FFC1CC', '#FFD700', '#ADD8E6', '#90EE90', '#FFA07A', '#B0E0E6', '#FFB6C1'];
+  const color = COLORS[name.length % COLORS.length];
+
+  return (
+    <div 
+      className="relative w-12 h-12 rounded-full overflow-hidden border-2 border-primary/5 shadow-inner flex items-center justify-center font-bold text-white text-lg"
+      style={{ backgroundColor: color }}
+    >
+      {getInitials(name)}
+    </div>
+  );
+};
+
+const GoogleIcon = () => (
+  <div className="relative w-4 h-4 shrink-0">
+    <Image src={googleIcon} alt="Google" fill className="object-contain" />
+  </div>
+);
 
 export function Testimonials() {
   const count = TESTIMONIALS.length;
@@ -42,7 +71,7 @@ export function Testimonials() {
   }, [api]);
   return (
     <section className="py-12 bg-[#F8FBFF]">
-      <div className="container mx-auto px-4 relative">
+      <div className="container-standard relative">
         <div className="absolute -top-6 left-6 opacity-70 hidden md:block">
           <Image src={logo} alt="Neném Chique Logo" width={64} height={64} className="object-contain" />
         </div>
@@ -51,11 +80,14 @@ export function Testimonials() {
           <p className="text-muted-foreground text-base font-light italic leading-relaxed">
             Mais do que roupas, entregamos memórias para o primeiro dia de vida.
           </p>
-          <div className="mt-3 flex items-center justify-center gap-2">
-            <div className="flex">
-              {[...Array(5)].map((_, i) => (
-                <Star key={i} className={`w-4 h-4 ${i < 5 ? 'fill-[#D4AF37] text-[#D4AF37] star-glow' : ''}`} />
-              ))}
+          <div className="mt-3 flex items-center justify-center gap-3">
+            <div className="flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-full shadow-sm border border-primary/5">
+              <GoogleIcon />
+              <div className="flex">
+                {[...Array(5)].map((_, i) => (
+                  <Star key={i} className={`w-3 h-3 ${i < 5 ? 'fill-[#D4AF37] text-[#D4AF37] star-glow' : ''}`} />
+                ))}
+              </div>
             </div>
             <span className="text-xs font-bold text-foreground/70">{avg} • {count} avaliações</span>
           </div>
@@ -81,15 +113,16 @@ export function Testimonials() {
                       <p className="text-foreground font-light italic mb-6 leading-relaxed text-sm">
                         "{t.comment}"
                       </p>
-                      <div className="flex items-center gap-4 pt-4 border-t border-primary/5">
-                        <div className="relative w-12 h-12 rounded-full overflow-hidden border-2 border-primary/5 shadow-inner">
-                          <Image src={t.imageUrl} alt={t.name} fill className="object-cover" />
+                        <div className="flex items-center gap-4 pt-4 border-t border-primary/5">
+                          <Avatar name={t.name} />
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <h4 className="font-bold text-foreground text-base leading-tight">{t.name}</h4>
+                              <GoogleIcon />
+                            </div>
+                            <p className="text-[10px] text-primary font-bold uppercase tracking-[0.15em] mt-1">{t.location || 'Brasil'}</p>
+                          </div>
                         </div>
-                        <div>
-                          <h4 className="font-bold text-foreground text-base leading-tight">{t.name}</h4>
-                          <p className="text-[10px] text-primary font-bold uppercase tracking-[0.15em] mt-1">Mãe do {t.babyName || 'bebê'} • {t.location || 'Brasil'}</p>
-                        </div>
-                      </div>
                     </CardContent>
                   </Card>
                 </CarouselItem>
@@ -121,12 +154,13 @@ export function Testimonials() {
                         "{t.comment}"
                       </p>
                       <div className="flex items-center gap-4 pt-6 border-t border-primary/5">
-                        <div className="relative w-12 h-12 rounded-full overflow-hidden border-2 border-primary/5 shadow-inner">
-                          <Image src={t.imageUrl} alt={t.name} fill className="object-cover" />
-                        </div>
+                        <Avatar name={t.name} />
                         <div>
-                          <h4 className="font-bold text-foreground text-base leading-tight">{t.name}</h4>
-                          <p className="text-[10px] text-primary font-bold uppercase tracking-[0.15em] mt-1">Mãe do {t.babyName || 'bebê'} • {t.location || 'Brasil'}</p>
+                          <div className="flex items-center gap-2">
+                            <h4 className="font-bold text-foreground text-base leading-tight">{t.name}</h4>
+                            <GoogleIcon />
+                          </div>
+                          <p className="text-[10px] text-primary font-bold uppercase tracking-[0.15em] mt-1">{t.location || 'Brasil'}</p>
                         </div>
                       </div>
                     </CardContent>

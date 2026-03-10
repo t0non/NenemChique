@@ -18,6 +18,10 @@
     --muted-foreground: 215 14% 46%;
     --accent: 34 32% 64%;
     --accent-foreground: 215 25% 27%;
+    --cream: 50 90% 92%;
+    --cream-foreground: 215 25% 27%;
+    --brown: 24 35% 35%;
+    --brown-foreground: 0 0% 100%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
     --border: 220 13% 91%;
@@ -49,6 +53,12 @@
   }
   .star-glow {
     filter: drop-shadow(0 0 6px rgba(212, 175, 55, 0.55));
+  }
+  .clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
   }
 }
 

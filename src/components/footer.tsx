@@ -4,7 +4,7 @@
 import { Instagram, Facebook, MessageCircle, Send, CheckCircle2, Loader2 } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import logo from '@/imagens/logo.png';
 
@@ -12,6 +12,7 @@ export function Footer() {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [copiedTop, setCopiedTop] = useState(false);
 
   const handleNewsletter = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,10 +39,18 @@ export function Footer() {
       element.scrollIntoView({ behavior: 'smooth' });
     }
   };
+  
+  const handleCopyTopSite = async () => {
+    try {
+      await navigator.clipboard.writeText('https://topmarketingbh.com.br/');
+      setCopiedTop(true);
+      setTimeout(() => setCopiedTop(false), 2000);
+    } catch {}
+  };
 
   return (
     <footer className="bg-white border-t border-primary/5 py-24">
-      <div className="container mx-auto px-4">
+      <div className="container-standard">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-16 md:gap-10">
           <div className="col-span-1 md:col-span-1">
             <Link href="/" className="flex items-center gap-3 mb-8 group cursor-pointer">
@@ -58,16 +67,13 @@ export function Footer() {
               Sua loja especializada em enxovais delicados e de alta qualidade. Cuidado e confiança para o primeiro dia de vida.
             </p>
             <div className="flex items-center gap-5">
-              <a href="#" className="p-3 bg-primary/5 rounded-2xl text-primary hover:bg-primary hover:text-white transition-all shadow-sm">
-                <title>Instagram</title>
+              <a href="#" aria-label="Instagram" className="p-3 bg-primary/5 rounded-2xl text-primary hover:bg-primary hover:text-white transition-all shadow-sm">
                 <Instagram className="w-6 h-6" />
               </a>
-              <a href="#" className="p-3 bg-primary/5 rounded-2xl text-primary hover:bg-primary hover:text-white transition-all shadow-sm">
-                <title>Facebook</title>
+              <a href="#" aria-label="Facebook" className="p-3 bg-primary/5 rounded-2xl text-primary hover:bg-primary hover:text-white transition-all shadow-sm">
                 <Facebook className="w-6 h-6" />
               </a>
-              <a href="https://wa.me/5531999384130" className="p-3 bg-primary/5 rounded-2xl text-primary hover:bg-primary hover:text-white transition-all shadow-sm">
-                <title>WhatsApp</title>
+              <a href="https://wa.me/5531999384130" aria-label="WhatsApp" className="p-3 bg-primary/5 rounded-2xl text-primary hover:bg-primary hover:text-white transition-all shadow-sm">
                 <MessageCircle className="w-6 h-6" />
               </a>
             </div>
@@ -126,6 +132,15 @@ export function Footer() {
           <p className="text-sm text-muted-foreground font-medium opacity-70">
             © {new Date().getFullYear()} Neném Chique. Todos os direitos reservados.
           </p>
+          <div className="mt-2 flex items-center justify-center gap-2 text-xs">
+            <span className="text-muted-foreground">Feito pela</span>
+            <a href="https://topmarketingbh.com.br/" target="_blank" rel="noopener noreferrer" className="font-bold text-primary hover:underline">
+              Top Marketing BH
+            </a>
+            <button onClick={handleCopyTopSite} className="px-2 py-1 rounded-full border text-primary hover:bg-primary/5 transition-colors">
+              {copiedTop ? 'Copiado!' : 'Copiar link'}
+            </button>
+          </div>
         </div>
       </div>
     </footer>

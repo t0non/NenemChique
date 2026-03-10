@@ -8,7 +8,11 @@ export function TopBanner() {
   const [remaining, setRemaining] = useState(0);
   const { settings } = useData();
 
-  const GROUP_LINK = "https://chat.whatsapp.com/SEU_LINK_DO_GRUPO";
+  const handleOpenDiscount = () => {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('openLeadPopup'));
+    }
+  };
   
   const items = settings?.marqueeItems || [];
   const displayItems = useMemo(() => [...items, ...items, ...items], [items]);
@@ -37,14 +41,14 @@ export function TopBanner() {
   return (
     <div className="sticky top-0 z-[1000] w-full shadow-sm overflow-hidden">
       {/* Marquee Principal */}
-      <div className="bg-pink-gradient border-b border-white/10 py-3 overflow-hidden whitespace-nowrap">
+      <div className="bg-pink-gradient border-b border-white/10 py-2 md:py-3 overflow-hidden whitespace-nowrap">
         <div className="flex items-center animate-marquee">
           {displayItems.map((item, index) => (
             <div key={index} className="flex items-center">
-              <span className="text-[13px] font-light uppercase tracking-[2px] text-white">
+              <span className="text-[11px] md:text-[13px] font-light uppercase tracking-[2px] text-white">
                 {item}
               </span>
-              <span className="mx-12 text-[18px] font-bold text-primary opacity-40">
+              <span className="mx-8 md:mx-12 text-[14px] md:text-[18px] font-bold text-primary opacity-40">
                 •
               </span>
             </div>
@@ -53,19 +57,17 @@ export function TopBanner() {
       </div>
 
       {/* Barra de Oferta + Contagem regressiva */}
-      <div className="bg-[#FDF2F4] border-b border-[#F7C1CD] py-2.5">
-        <div className="container-standard flex flex-wrap items-center justify-center gap-4 text-center">
-          <span className="text-[12px] font-light tracking-[1px] text-foreground/70 uppercase">
-            {settings?.promotionText || "✨ 10% OFF NA SUA ESTREIA! ENTRE NO GRUPO DO WHATSAPP E PEGUE O CUPOM NA DESCRIÇÃO."}
+      <div className="bg-[#FDF2F4] border-b border-[#F7C1CD] py-1.5 md:py-2.5">
+        <div className="container-standard flex flex-wrap items-center justify-center gap-2 md:gap-4 text-center">
+          <span className="text-[11px] md:text-[12px] font-light tracking-[1px] text-foreground/70 uppercase">
+            {settings?.promotionText || "✨ 10% OFF NA SUA ESTREIA! REGISTRE-SE E LIBERE SEU CUPOM AGORA."}
           </span>
-          <a
-            href={GROUP_LINK}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="px-4 py-1.5 rounded-full text-[10px] font-bold transition-all duration-300 bg-[#6CA0CF] text-white hover:opacity-90"
+          <button
+            onClick={handleOpenDiscount}
+            className="px-3 py-1 md:px-4 md:py-1.5 rounded-full text-[10px] font-bold transition-all duration-300 bg-[#6CA0CF] text-white hover:opacity-90"
           >
-            Entrar no Grupo
-          </a>
+            Ganhar 10%
+          </button>
 
           <div className="hidden md:flex items-center gap-2 ml-4 text-primary">
             <Clock className="w-4 h-4" />
