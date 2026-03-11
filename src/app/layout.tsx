@@ -1,4 +1,5 @@
 import type {Metadata, Viewport} from 'next';
+import Script from 'next/script';
 import { Instrument_Sans } from 'next/font/google';
 import './globals.css';
 import {Navbar} from '@/components/navbar';
@@ -10,6 +11,7 @@ import { TopBanner } from '@/components/top-banner';
 import { FloatingCartButton } from '@/components/floating-cart-button';
 import { ClientLeadWrapper } from '@/components/client-lead-wrapper';
 import slide1 from '@/imagens/SLIDE (1).png';
+import logo from '@/imagens/logo.png';
 
 const instrumentSans = Instrument_Sans({
   subsets: ['latin'],
@@ -37,14 +39,40 @@ export default function RootLayout({
   return (
     <html lang="pt-BR" className={`scroll-smooth overflow-x-hidden ${instrumentSans.variable}`}>
       <head>
-        {process.env.NODE_ENV === 'production' ? <script src="/env.js" /> : null}
-        <link rel="icon" href="/favicon.png" type="image/png" sizes="32x32" />
-        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+        {process.env.NODE_ENV === 'production' ? (
+          <Script src="/env.js" strategy="afterInteractive" />
+        ) : null}
+        {process.env.NODE_ENV !== 'production' ? (
+          <Script id="filter-dev-err-aborted" strategy="beforeInteractive">{`
+            (function(){
+              var o = console.error;
+              console.error = function(){
+                for (var i=0;i<arguments.length;i++){
+                  var a = arguments[i];
+                  if (typeof a === 'string' && a.indexOf('net::ERR_ABORTED') !== -1 && a.indexOf('_rsc=') !== -1) {
+                    return;
+                  }
+                }
+                return o.apply(console, arguments);
+              };
+            })();
+          `}</Script>
+        ) : null}
+        <link rel="icon" href={logo.src} sizes="any" />
+        <link rel="apple-touch-icon" href={logo.src} />
         <meta name="application-name" content="Neném Chique" />
         <meta name="apple-mobile-web-app-title" content="Neném Chique" />
-        <link rel="preload" as="image" href={slide1.src} />
-        <link rel="preconnect" href="https://pkparxozauwbpckwplht.supabase.co" />
-        <link rel="preconnect" href="https://picsum.photos" />
+        {/* Removido preload de imagem para evitar warning de 'preloaded but not used' */}
+        <link rel="preconnect" href="https://pkparxozauwbpckwplht.supabase.co" crossOrigin="" />
+        <link rel="dns-prefetch" href="https://pkparxozauwbpckwplht.supabase.co" />
+        <link rel="preconnect" href="https://picsum.photos" crossOrigin="" />
+        <link rel="dns-prefetch" href="https://picsum.photos" />
+        <link rel="preconnect" href="https://images.unsplash.com" crossOrigin="" />
+        <link rel="dns-prefetch" href="https://images.unsplash.com" />
+        <link rel="preconnect" href="https://source.unsplash.com" crossOrigin="" />
+        <link rel="dns-prefetch" href="https://source.unsplash.com" />
+        <link rel="preconnect" href="https://placehold.co" crossOrigin="" />
+        <link rel="dns-prefetch" href="https://placehold.co" />
         <meta property="og:title" content="Neném Chique — Tricot hipoalergênico e curadoria de enxoval" />
         <meta property="og:description" content="Mais do que roupas, memórias para o primeiro dia de vida. Frete grátis a partir de R$ 299." />
         <meta property="og:type" content="website" />

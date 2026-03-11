@@ -34,7 +34,7 @@ const Avatar = ({ name }: { name: string }) => {
 
 const GoogleIcon = () => (
   <div className="relative w-4 h-4 shrink-0">
-    <Image src={googleIcon} alt="Google" fill className="object-contain" />
+    <Image src={googleIcon} alt="Google" fill className="object-contain" loading="lazy" />
   </div>
 );
 
@@ -73,7 +73,7 @@ export function Testimonials() {
     <section className="py-12 bg-[#F8FBFF]">
       <div className="container mx-auto px-4 relative">
         <div className="absolute -top-6 left-6 opacity-70 hidden md:block">
-          <Image src={logo} alt="Neném Chique Logo" width={64} height={64} className="object-contain" />
+          <Image src={logo} alt="Neném Chique Logo" width={64} height={64} className="object-contain" loading="lazy" />
         </div>
         <div className="text-center mb-8 max-w-3xl mx-auto">
           <h2 className="text-2xl md:text-4xl font-light mb-2 text-primary">Feedback das Mamães ☁️</h2>

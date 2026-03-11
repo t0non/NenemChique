@@ -29,7 +29,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { useData } from '@/context/data-context';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabase';
-import { cn } from '@/lib/utils';
+import { cn, errToString } from '@/lib/utils';
 
 export default function AdminPage() {
   const { toast } = useToast();
@@ -91,7 +91,7 @@ export default function AdminPage() {
       if (error) throw error;
       setOrders(data || []);
     } catch (error) {
-      console.error('Erro ao buscar pedidos:', error);
+      console.error('Erro ao buscar pedidos:', errToString(error));
     } finally {
       setIsLoadingOrders(false);
     }
@@ -131,7 +131,7 @@ export default function AdminPage() {
       if (error) throw error;
       setLeads(data || []);
     } catch (error) {
-      console.error('Erro ao buscar leads:', error);
+      console.error('Erro ao buscar leads:', errToString(error));
     } finally {
       setIsLoadingLeads(false);
     }
@@ -1017,7 +1017,7 @@ export default function AdminPage() {
                             <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
                               {productForm.images.map((url, idx) => (
                                 <div key={url + idx} className="relative aspect-square rounded-xl overflow-hidden border shadow-inner bg-muted/20">
-                                  <Image src={url} alt={`Imagem ${idx+1}`} fill className="object-cover" />
+                                  <Image src={url} alt={`Imagem ${idx+1}`} fill className="object-cover" loading="lazy" />
                                   <button
                                     type="button"
                                     className="absolute top-1 right-1 bg-black/60 text-white rounded-md p-1"
@@ -1342,7 +1342,7 @@ export default function AdminPage() {
                         <TableCell className="py-3 md:py-4 pl-4 md:pl-8">
                           <div className="flex items-center gap-3 md:gap-4">
                             <div className="relative w-8 h-8 md:w-10 md:h-10 rounded-lg overflow-hidden shadow-sm shrink-0">
-                              <Image src={p.images?.[0] || 'https://picsum.photos/seed/baby/200/200'} alt={p.name} fill className="object-cover" />
+                              <Image src={p.images?.[0] || 'https://picsum.photos/seed/baby/200/200'} alt={p.name} fill className="object-cover" loading="lazy" />
                             </div>
                             <div className="flex flex-col">
                               <span className="font-bold text-xs md:text-sm line-clamp-1">{p.name}</span>
@@ -1761,7 +1761,7 @@ export default function AdminPage() {
                    <div className="flex flex-col gap-3 p-3 md:p-4 border-2 border-dashed rounded-xl bg-muted/5 group hover:bg-muted/10 transition-colors">
                      {settingsForm.heroImageUrl ? (
                        <div className="relative aspect-video rounded-lg overflow-hidden border">
-                         <Image src={settingsForm.heroImageUrl} alt="Preview" fill className="object-cover" />
+                         <Image src={settingsForm.heroImageUrl} alt="Preview" fill className="object-cover" loading="lazy" />
                        </div>
                      ) : (
                        <div className="flex flex-col items-center py-4">

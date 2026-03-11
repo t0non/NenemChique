@@ -4,6 +4,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Product, Category, Coupon, Review } from '@/lib/types';
 import { PRODUCTS, CATEGORIES } from '@/lib/data';
 import { supabase } from '@/lib/supabase';
+import { errToString } from '@/lib/utils';
 
 interface SiteSettings {
   marqueeItems: string[];
@@ -136,7 +137,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     hero_title: s.heroTitle,
     hero_description: s.heroDescription,
     hero_image_url: s.heroImageUrl,
-    show_coupon_cta: s.showCouponCTA ?? true,
+    // show_coupon_cta removido do payload para compatibilidade com bancos que não possuem essa coluna
   });
   
   const mapReviewFromDB = (r: any): Review => ({
@@ -246,7 +247,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           
           // Reviews são carregadas por página de produto; não buscamos globalmente para reduzir payload inicial
         } catch (innerError) {
-          console.error("Erro interno no fetch:", innerError);
+          console.error("Erro interno no fetch:", errToString(innerError));
         }
       })();
 
@@ -273,7 +274,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       
       // Aqui você poderia adicionar fetch de outras tabelas pesadas que só o admin usa
     } catch (e) {
-      console.error("Erro ao carregar dados administrativos:", e);
+      console.error("Erro ao carregar dados administrativos:", errToString(e));
     }
   };
 
@@ -453,7 +454,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       }
       await fetchData();
     } catch (e) {
-      console.error("Erro ao importar JSON", e);
+      console.error("Erro ao importar JSON", errToString(e));
       throw e;
     }
   };
@@ -499,7 +500,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
       await fetchData();
     } catch (e) {
-      console.error("Erro ao sincronizar dados iniciais:", e);
+      console.error("Erro ao sincronizar dados iniciais:", errToString(e));
       throw e;
     } finally {
       setIsLoading(false);
@@ -601,7 +602,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
       await fetchData();
     } catch (e) {
-      console.error("Erro ao restaurar backup:", e);
+      console.error("Erro ao restaurar backup:", errToString(e));
       throw e;
     } finally {
       setIsLoading(false);

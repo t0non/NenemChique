@@ -4,6 +4,7 @@ import React, { createContext, useContext, useState, useMemo, useEffect } from '
 import { Product } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabase';
+import { errToString } from '@/lib/utils';
 
 interface CartItem extends Product {
   quantity: number;
@@ -14,6 +15,8 @@ interface CartContextType {
   addToCart: (product: Product, quantity?: number) => void;
   removeFromCart: (productId: string) => void;
   clearCart: () => void;
+  updateQuantity: (productId: string, quantity: number) => void;
+  ensureOrderCode: () => Promise<string>;
   subtotal: number;
   total: number;
   itemCount: number;
@@ -52,14 +55,63 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const itemCount = useMemo(() => items.reduce((acc, item) => acc + item.quantity, 0), [items]);
 
   // Função para gerar um código de pedido único
-  const generateOrderCode = () => {
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-    let code = 'NC-';
-    for (let i = 0; i < 5; i++) {
-      code += chars.charAt(Math.floor(Math.random() * chars.length));
+  const generateOrderCodeLocal = () => {
+    if (typeof window === 'undefined') {
+      return `NC-${Date.now()}`;
     }
+    const now = new Date();
+    const y = now.getFullYear();
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const dd = String(now.getDate()).padStart(2, '0');
+    const current = parseInt(localStorage.getItem('nenem_order_counter') || '0', 10) + 1;
+    localStorage.setItem('nenem_order_counter', String(current));
+    const code = `NC-${y}${mm}${dd}-${String(current).padStart(4, '0')}`;
+    localStorage.setItem('nenem_order_code', code);
     return code;
   };
+
+  const ensureOrderCode = async () => {
+    if (orderCode) return orderCode;
+    try {
+      const now = new Date();
+      const y = now.getFullYear();
+      const mm = String(now.getMonth() + 1).padStart(2, '0');
+      const dd = String(now.getDate()).padStart(2, '0');
+      const base = `NC-${y}${mm}${dd}`;
+      let idx = 1;
+      for (; idx <= 10; idx++) {
+        const candidate = `${base}-${String(idx).padStart(4, '0')}`;
+        const payload: any = {
+          order_code: candidate,
+          customer_id: null,
+          customer_name: '',
+          customer_whatsapp: '',
+          items: items || [],
+          total: 0,
+          status: 'cart_open',
+          updated_at: new Date().toISOString()
+        };
+        const { error } = await supabase.from('orders').insert([payload]);
+        if (!error) {
+          setOrderCode(candidate);
+          if (typeof window !== 'undefined') localStorage.setItem('nenem_order_code', candidate);
+          return candidate;
+        }
+        const msg = String(error.message || '').toLowerCase();
+        if (!(msg.includes('duplicate') || msg.includes('unique'))) break;
+      }
+    } catch {}
+    const local = generateOrderCodeLocal();
+    setOrderCode(local);
+    return local;
+  };
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('nenem_order_code');
+      if (saved) setOrderCode(saved);
+    }
+  }, []);
 
   // Sincronizar carrinho com o banco de dados (Tabela de Orders)
   const syncCartWithDB = async () => {
@@ -72,7 +124,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     
     let currentOrderCode = orderCode;
     if (!currentOrderCode) {
-      currentOrderCode = generateOrderCode();
+      currentOrderCode = generateOrderCodeLocal();
       setOrderCode(currentOrderCode);
     }
 
@@ -91,9 +143,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           updated_at: new Date().toISOString()
         }, { onConflict: 'order_code' });
 
-      if (error) console.error('Erro ao sincronizar carrinho:', error);
+      if (error) console.error('Erro ao sincronizar carrinho:', errToString(error));
     } catch (e) {
-      console.error('Erro na sincronização:', e);
+      console.error('Erro na sincronização:', errToString(e));
     }
   };
 
@@ -118,13 +170,30 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     });
     
     setIsCartOpen(true);
+    if (!orderCode) {
+      const code = generateOrderCodeLocal();
+      setOrderCode(code);
+    }
   };
 
   const removeFromCart = (productId: string) => {
     setItems((prev) => prev.filter((item) => item.id !== productId));
   };
 
-  const clearCart = () => setItems([]);
+  const clearCart = () => {
+    setItems([]);
+    setOrderCode(null);
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('nenem_order_code');
+    }
+  };
+  
+  const updateQuantity = (productId: string, quantity: number) => {
+    setItems(prev => {
+      if (quantity <= 0) return prev.filter(i => i.id !== productId);
+      return prev.map(i => i.id === productId ? { ...i, quantity } : i);
+    });
+  };
 
   const applyCoupon = async (code: string) => {
     const up = (code || '').trim().toUpperCase();
@@ -164,6 +233,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       items, 
       addToCart, 
       removeFromCart, 
+      updateQuantity,
+      ensureOrderCode,
       clearCart, 
       subtotal: subtotalAmount,
       total: totalAmount, 

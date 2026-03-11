@@ -60,6 +60,7 @@ export function Footer() {
                 width={36}
                 height={36}
                 className="object-contain"
+                loading="lazy"
               />
               <span className="text-2xl font-bold text-primary tracking-tight">Neném Chique</span>
             </Link>
@@ -67,10 +68,10 @@ export function Footer() {
               Sua loja especializada em enxovais delicados e de alta qualidade. Cuidado e confiança para o primeiro dia de vida.
             </p>
             <div className="flex items-center gap-5">
-              <a href="#" aria-label="Instagram" className="p-3 bg-primary/5 rounded-2xl text-primary hover:bg-primary hover:text-white transition-all shadow-sm">
+              <a href="https://www.instagram.com/nenemchiquee/" target="_blank" rel="noopener noreferrer" aria-label="Instagram" className="p-3 bg-primary/5 rounded-2xl text-primary hover:bg-primary hover:text-white transition-all shadow-sm">
                 <Instagram className="w-6 h-6" />
               </a>
-              <a href="#" aria-label="Facebook" className="p-3 bg-primary/5 rounded-2xl text-primary hover:bg-primary hover:text-white transition-all shadow-sm">
+              <a href="https://www.facebook.com/nenemchiquee" target="_blank" rel="noopener noreferrer" aria-label="Facebook" className="p-3 bg-primary/5 rounded-2xl text-primary hover:bg-primary hover:text-white transition-all shadow-sm">
                 <Facebook className="w-6 h-6" />
               </a>
               <a href="https://wa.me/5531999384130" aria-label="WhatsApp" className="p-3 bg-primary/5 rounded-2xl text-primary hover:bg-primary hover:text-white transition-all shadow-sm">

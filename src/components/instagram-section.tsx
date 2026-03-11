@@ -36,7 +36,7 @@ export function InstagramSection() {
                 <div className="flex -space-x-2">
                   {[1, 2, 3].map((i) => (
                     <div key={i} className="w-8 h-8 rounded-full border-2 border-white bg-muted overflow-hidden">
-                      <Image src={`https://picsum.photos/seed/baby${i}/100/100`} alt="Seguidor" width={32} height={32} />
+                      <Image src={`https://picsum.photos/seed/baby${i}/100/100`} alt="Seguidor" width={32} height={32} loading="lazy" />
                     </div>
                   ))}
                 </div>

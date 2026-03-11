@@ -27,3 +27,21 @@ export function digitsOnlyPhone(input: string) {
   if (d.startsWith('55') && d.length > 11) return d.slice(2);
   return d;
 }
+
+export function errToString(e: unknown): string {
+  try {
+    if (e instanceof Error) {
+      const base = `${e.name}: ${e.message}`;
+      return e.stack ? `${base}\n${e.stack}` : base;
+    }
+    if (typeof e === 'string') return e;
+    if (typeof e === 'object' && e) {
+      const msg = (e as any).message || (e as any).error || (e as any).statusText;
+      if (msg) return String(msg);
+      return JSON.stringify(e);
+    }
+    return String(e);
+  } catch {
+    return 'Unknown error';
+  }
+}

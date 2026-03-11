@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { errToString } from '@/lib/utils'
 
 const supabaseUrl = (
   (process.env.NEXT_PUBLIC_SUPABASE_URL as string) ||
@@ -12,7 +13,9 @@ const supabaseAnonKey = (
 ).trim()
 
 if (!supabaseUrl || !supabaseAnonKey) {
-  console.error('Supabase URL or Anon Key is missing! Check your .env.local file.')
+  console.error(
+    'Supabase configuration missing. URL or Anon Key is empty. Verifique seu .env.local ou /env.js.'
+  )
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+export const supabase = createClient(supabaseUrl || 'https://example.invalid', supabaseAnonKey || 'anon')

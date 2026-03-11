@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { supabase } from '@/lib/supabase';
-import { formatPhoneBR, digitsOnlyPhone } from '@/lib/utils';
+import { formatPhoneBR, digitsOnlyPhone, errToString } from '@/lib/utils';
 import { personalizedLayetteKitRecommendation, PersonalizedLayetteKitRecommendationOutput } from '@/ai/flows/personalized-layette-kit-recommendation';
 
 export function AIRecommender() {
@@ -50,7 +50,7 @@ export function AIRecommender() {
         // Silently fail
       }
     } catch (error) {
-      console.error(error);
+      console.error('AIRecommender error:', errToString(error));
     } finally {
       setLoading(false);
     }

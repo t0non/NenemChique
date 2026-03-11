@@ -22,8 +22,8 @@ const InstagramSection = dynamic(() => import('@/components/instagram-section').
 const FAQ = dynamic(() => import('@/components/faq').then(m => m.FAQ), { ssr: false });
 const HeroSlider = dynamic(() => import('@/components/hero-slider').then(m => m.HeroSlider), { ssr: false });
 const VaralzinhoDivider = dynamic(() => Promise.resolve(() => (
-  <div className="w-full bg-[#FDF8FB] py-2 md:py-4 overflow-hidden border-y border-primary/5 -mt-2">
-    <div className="relative w-full h-28 sm:h-36 md:h-48 overflow-hidden">
+  <div className="w-full bg-[#FDF8FB] py-0 md:py-1 overflow-hidden border-y border-primary/5 -mt-[14vh] sm:-mt-12 md:-mt-10">
+    <div className="relative w-full h-16 sm:h-24 md:h-36 overflow-hidden">
       <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-[180vw] md:w-[240vw] h-full">
         <Image
           src={varal}
@@ -105,8 +105,8 @@ export default function Home() {
 
   return (
     <div className="flex flex-col font-sans">
-      <section className="relative min-h-[50vh] flex items-center bg-[#FDF8FB] overflow-hidden pt-6 pb-3 md:py-12">
-        <div className="container-standard z-10 grid lg:grid-cols-2 gap-8 items-center">
+      <section className="relative flex items-start md:items-center bg-[#FDF8FB] overflow-hidden pt-2 pb-0 md:py-6 md:min-h-[60vh]">
+        <div className="container-standard z-10 grid lg:grid-cols-2 gap-5 items-start md:items-center">
           <div className="max-w-xl animate-in fade-in duration-700">
             <div className="flex items-center gap-2 mb-4">
               <div className="flex">

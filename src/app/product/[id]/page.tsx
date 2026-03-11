@@ -182,19 +182,19 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
          <div className="grid lg:grid-cols-2 gap-8">
            <div className="flex gap-3">
              <div className="flex flex-col gap-2">
-               {(product.images || []).map((img) => (
+              {(product.images || []).map((img) => (
                  <button
                    key={img}
                    onClick={() => setSelectedImage(img)}
                    className={`relative w-16 h-20 rounded-xl overflow-hidden border ${selectedImage === img ? 'border-primary' : 'border-muted'} bg-white`}
                  >
-                   <Image src={img} alt={product.name} fill className="object-cover" />
+                  <Image src={img} alt={product.name} fill className="object-cover" loading="lazy" />
                  </button>
                ))}
              </div>
              <div className="relative flex-1 aspect-square rounded-2xl overflow-hidden bg-white border border-muted">
                {selectedImage && (
-                 <Image src={selectedImage} alt={product.name} fill className="object-contain" />
+                <Image src={selectedImage} alt={product.name} fill className="object-contain" loading="lazy" />
                )}
              </div>
            </div>

@@ -56,7 +56,8 @@ export function SocialProofToast() {
             src={product.images[0]} 
             alt={product.name} 
             fill 
-            className="object-contain" 
+            className="object-contain"
+            loading="lazy"
           />
         </div>
         <div className="overflow-hidden">

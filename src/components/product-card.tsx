@@ -2,6 +2,7 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { Product } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
@@ -14,6 +15,7 @@ import { useToast } from '@/hooks/use-toast';
 
 export function ProductCard({ product }: { product: Product }) {
   const { addToCart } = useCart();
+  const router = useRouter();
   const [qty, setQty] = useState(1);
   const [selectedColor, setSelectedColor] = useState<string | null>(null);
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
@@ -110,7 +112,13 @@ export function ProductCard({ product }: { product: Product }) {
       <Link 
         href={`/product/${product.id}`} 
         prefetch={false}
-        className="relative w-full aspect-square rounded-xl overflow-hidden mb-4 bg-muted/20 block"
+        aria-label={`Ver detalhes de ${product.name}`}
+        className="relative w-full aspect-square rounded-xl overflow-hidden mb-4 bg-muted/20 block cursor-pointer"
+        onClick={(e) => {
+          // Garantia extra de navegação em ambientes com drag de carrossel
+          e.stopPropagation();
+          router.push(`/product/${product.id}`);
+        }}
       >
         {/* Badge de estoque removida conforme solicitação */}
         <Image
@@ -123,6 +131,7 @@ export function ProductCard({ product }: { product: Product }) {
           sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 80vw"
           placeholder="blur"
           blurDataURL={BLUR}
+          draggable={false}
         />
       </Link>
       

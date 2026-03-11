@@ -25,20 +25,21 @@ export function HeroSlider() {
   }, [api])
 
   return (
-    <section className="bg-[#FDF8FB] mt-0">
-      <div className="relative w-full h-[70vh] md:h-[90vh]">
+    <section className="mt-0 overflow-hidden">
+      <div className="relative w-full h-[72vh] md:h-screen bg-[#FDF8FB]">
         <Carousel opts={{ align: "start", loop: true }} setApi={setApi} className="w-full h-full">
           <CarouselContent className="h-full ml-0">
             {slides.map((s, i) => (
-              <CarouselItem key={i} className="basis-full h-full">
-                <Link href={s.href} prefetch={false} className="relative w-full h-full block bg-[#FDF8FB]" aria-label={s.alt}>
+              <CarouselItem key={i} className="basis-full h-full pl-0">
+                <Link href={s.href} prefetch={false} className="relative w-full h-full block overflow-hidden bg-[#FDF8FB]" aria-label={s.alt}>
                   <Image
                     src={s.src}
                     alt={s.alt}
                     fill
-                    className="object-cover object-top"
+                    className="object-contain object-top md:object-cover md:object-center"
                     quality={70}
                     priority={i === 0}
+                    loading={i === 0 ? undefined : "lazy"}
                     sizes="100vw"
                   />
                 </Link>

@@ -11,6 +11,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { PRODUCTS } from '@/lib/data';
 import Image from 'next/image';
 import { useToast } from '@/hooks/use-toast';
+import { errToString } from '@/lib/utils';
 
 export default function VirtualFittingPage() {
   const { toast } = useToast();
@@ -33,7 +34,7 @@ export default function VirtualFittingPage() {
           videoRef.current.srcObject = stream;
         }
       } catch (error) {
-        console.error('Error accessing camera:', error);
+        console.error('Error accessing camera:', errToString(error));
         setHasCameraPermission(false);
         toast({
           variant: 'destructive',
@@ -94,11 +95,12 @@ export default function VirtualFittingPage() {
                     }}
                   >
                     <div className="relative aspect-[3/4] w-full">
-                       <Image 
+                      <Image 
                         src={selectedProduct.images[0]} 
                         alt={selectedProduct.name}
                         fill
                         className="object-contain opacity-90"
+                        loading="lazy"
                       />
                     </div>
                   </div>
@@ -219,7 +221,8 @@ export default function VirtualFittingPage() {
                         src={product.images[0]} 
                         alt={product.name} 
                         fill 
-                        className="object-cover" 
+                        className="object-cover"
+                        loading="lazy" 
                       />
                     </div>
                     <div className="overflow-hidden">

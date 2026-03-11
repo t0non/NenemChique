@@ -31,12 +31,13 @@ export function TopBanner() {
     return () => clearInterval(id);
   }, [settings?.promotionCountdown]);
 
-  const h = Math.floor(remaining / 3600000);
+  const d = Math.floor(remaining / 86400000);
+  const hRem = Math.floor((remaining % 86400000) / 3600000);
   const m = Math.floor((remaining % 3600000) / 60000);
-  const s = Math.floor((remaining % 60000) / 1000);
-  const hh = String(h).padStart(2, '0');
+  const dd = String(d);
+  const hh = String(hRem).padStart(2, '0');
   const mm = String(m).padStart(2, '0');
-  const ss = String(s).padStart(2, '0');
+  const displayTime = d > 0 ? `${dd}d ${hh}h` : `${hh}h ${mm}m`;
 
   return (
     <div className="sticky top-0 z-[1000] w-full shadow-sm overflow-hidden">
@@ -72,7 +73,7 @@ export function TopBanner() {
           <div className="hidden md:flex items-center gap-2 ml-4 text-primary">
             <Clock className="w-4 h-4" />
             <span className="text-[12px] font-bold tracking-[0.1em]">
-              Termina em {hh}:{mm}:{ss}
+              Termina em {displayTime}
             </span>
           </div>
         </div>

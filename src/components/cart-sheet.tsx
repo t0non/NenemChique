@@ -3,7 +3,6 @@
 
 import { useCart } from '@/context/cart-context';
 import { useData } from '@/context/data-context';
-import { PRODUCTS } from '@/lib/data';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -14,37 +13,21 @@ import {
   SheetTrigger,
   SheetClose,
 } from "@/components/ui/sheet";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-  DialogFooter,
-  DialogClose,
-} from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
-import { ShoppingCart, Trash2, ArrowRight, CheckCircle2, ChevronLeft, Sparkles, Tag, RotateCcw, ShieldCheck, X as CloseIcon } from 'lucide-react';
+import { ShoppingCart, CheckCircle2, Tag, RotateCcw, ShieldCheck, X as CloseIcon } from 'lucide-react';
 import Image from 'next/image';
 import { useState, useMemo } from 'react';
 import { WhatsAppIcon } from './whatsapp-icon';
-import { cn, formatPhoneBR, digitsOnlyPhone } from '@/lib/utils';
-import { supabase } from '@/lib/supabase';
 
 export function CartSheet() {
-  const { items, removeFromCart, subtotal, total, itemCount, addToCart, isCartOpen, setIsCartOpen, couponApplied, applyCoupon, discountAmount } = useCart();
+  const { items, removeFromCart, subtotal, total, itemCount, addToCart, updateQuantity, ensureOrderCode, isCartOpen, setIsCartOpen, couponApplied, applyCoupon, discountAmount } = useCart();
   const [couponInput, setCouponInput] = useState("");
   const [confirmingDelete, setConfirmingDelete] = useState<string | null>(null);
-  const { products: allProducts, coupons, settings } = useData();
+  const { products: allProducts } = useData();
 
-  // Mini lead capture (no carrinho)
-  const [leadName, setLeadName] = useState('');
-  const [leadPhone, setLeadPhone] = useState('');
-  const [leadLoading, setLeadLoading] = useState(false);
-  const [leadSubmitted, setLeadSubmitted] = useState(false);
-  const [copyOk, setCopyOk] = useState(false);
+  // Mini lead capture removido para uma UI mais minimalista
 
-  const SHIPPING_THRESHOLD = 300;
+  const SHIPPING_THRESHOLD = 299;
   const remainingForFreeShipping = Math.max(0, SHIPPING_THRESHOLD - subtotal);
   const progressPercentage = Math.min(100, (subtotal / SHIPPING_THRESHOLD) * 100);
 
@@ -72,49 +55,20 @@ export function CartSheet() {
     if (ok) setCouponInput("");
   };
 
-  const { orderCode } = useCart();
-
-  // Seleciona o melhor cupom ativo (não expirado)
-  const activeCouponCode = useMemo(() => {
-    if (!coupons || coupons.length === 0) return null;
-    const now = Date.now();
-    const valid = coupons.filter(c => !c.expiresAt || new Date(c.expiresAt).getTime() >= now);
-    if (valid.length === 0) return null;
-    // Mais recente primeiro (se createdAt existir)
-    return valid
-      .sort((a, b) => {
-        const ad = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-        const bd = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-        return bd - ad;
-      })[0].code;
-  }, [coupons]);
-
-  const submitLeadFromCart = async () => {
-    if (!leadName || !leadPhone) return;
-    setLeadLoading(true);
-    try {
-      await supabase.from('leads').insert({
-        name: leadName,
-        whatsapp: digitsOnlyPhone(leadPhone),
-        source: 'cart_popup_discount',
-        data: { coupon: activeCouponCode || null }
-      });
-      setLeadSubmitted(true);
-    } catch (e) {
-      setLeadSubmitted(true); // mesmo com erro, não travar UX
-    } finally {
-      setLeadLoading(false);
-    }
-  };
-
-  const finalizeOrder = () => {
+  const finalizeOrder = async () => {
     const telefoneLoja = "5531999384130";
+    const code = await ensureOrderCode();
 
-    let message = "🎀 *NOVO PEDIDO - NENÉM CHIQUE* 🎀\n";
-    message += `📦 Pedido: *${orderCode || 'S/N'}*\n`;
+    const ua = typeof navigator !== 'undefined' ? navigator.userAgent : '';
+    const useEmoji = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
+
+    let message = useEmoji ? "🎀 *NOVO PEDIDO - NENÉM CHIQUE* 🎀\n" : "*NOVO PEDIDO - NENÉM CHIQUE*\n";
+    message += useEmoji ? `📦 Pedido: *${code}*\n` : `Pedido: *${code}*\n`;
     message += "------------------------------------\n";
-    message += "Olá! Quero finalizar minha compra pelo WhatsApp. 🍼✨\n\n";
-    message += "🛍️ *Itens do carrinho*\n";
+    message += useEmoji
+      ? "Olá! Quero finalizar minha compra pelo WhatsApp. 🍼✨\n\n"
+      : "Olá! Quero finalizar minha compra pelo WhatsApp.\n\n";
+    message += useEmoji ? "🛍️ *Itens do carrinho*\n" : "*ITENS DO CARRINHO*\n";
     message += "------------------------------------\n";
 
     // Itens principais e Upsell juntos na mesma lista clara
@@ -124,7 +78,7 @@ export function CartSheet() {
       const parts = item.name.split(' · ');
       const base = parts[0];
       const variants = parts.slice(1).join(' • ');
-      message += `• ${item.quantity}x *${base}*\n`;
+      message += useEmoji ? `• ${item.quantity}x *${base}*\n` : `- ${item.quantity}x ${base}\n`;
       if (variants) {
         message += `   ├ Cor/Tamanho: ${variants}\n`;
       }
@@ -136,14 +90,16 @@ export function CartSheet() {
     // Seção de Descontos e Ofertas
     if (couponApplied) {
       let descontoFormatado = discountAmount.toFixed(2).replace('.', ',');
-      message += `🎟️ Cupom aplicado: *${couponApplied}*\n`;
+      message += useEmoji ? `🎟️ Cupom aplicado: *${couponApplied}*\n` : `Cupom aplicado: ${couponApplied}\n`;
       message += `   └ Desconto: - R$ ${descontoFormatado}\n\n`;
     }
 
     // Fechamento com Destaque
     let totalFormatado = total.toFixed(2).replace('.', ',');
-    message += `💰 *Total:* R$ ${totalFormatado}\n\n`;
-    message += "📨 Aguardo o link para pagamento e previsão de entrega. Obrigado! 💗";
+    message += useEmoji ? `💰 *Total:* R$ ${totalFormatado}\n\n` : `TOTAL: R$ ${totalFormatado}\n\n`;
+    message += useEmoji
+      ? "📨 Aguardo o link para pagamento e previsão de entrega. Obrigado! 💗"
+      : "Aguardo o link para pagamento e previsão de entrega. Obrigado!";
     
     const encodedMessage = encodeURIComponent(message.normalize('NFC'));
     const url = `https://wa.me/${telefoneLoja}?text=${encodedMessage}`;
@@ -151,9 +107,9 @@ export function CartSheet() {
   };
 
   return (
-    <Sheet open={isCartOpen} onOpenChange={setIsCartOpen} modal={false}>
+    <Sheet open={isCartOpen} onOpenChange={setIsCartOpen} modal>
       <SheetTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative rounded-xl hover:bg-primary/5">
+        <Button aria-label="Abrir carrinho" variant="ghost" size="icon" className="relative rounded-xl hover:bg-primary/5">
           <ShoppingCart className="w-6 h-6 text-primary" />
           {itemCount > 0 && (
             <span className="absolute -top-1 -right-1 bg-pink-gradient text-white text-[10px] font-bold h-5 w-5 rounded-full flex items-center justify-center shadow-md">
@@ -162,22 +118,20 @@ export function CartSheet() {
           )}
         </Button>
       </SheetTrigger>
-      <SheetContent side="right" className="w-[380px] max-w-[92vw] h-[100dvh] md:h-screen flex flex-col p-0 border-l-primary/10 rounded-l-2xl">
-        <SheetHeader className="p-4 border-b bg-white flex items-center justify-between space-y-0">
+      <SheetContent side="right" className="w-[360px] sm:w-[380px] md:w-[420px] max-w-[95vw] h-[100svh] md:h-screen grid grid-rows-[auto,1fr,auto] overflow-hidden p-0 border-l border-primary/10 rounded-l-2xl">
+        <SheetHeader className="sticky top-0 z-20 p-4 md:p-5 border-b bg-white flex items-center justify-center space-y-0">
+          <SheetTitle className="text-xs font-bold text-foreground uppercase tracking-[0.25em]">
+            CARRINHO DE COMPRAS
+          </SheetTitle>
           <SheetClose asChild>
-            <Button variant="ghost" size="sm" className="h-8 px-2 text-muted-foreground gap-1">
-              <ChevronLeft className="w-4 h-4" />
-              Fechar
+            <Button aria-label="Fechar carrinho" variant="ghost" size="icon" className="absolute right-3 top-3 h-9 w-9 rounded-full hover:bg-muted">
+              <CloseIcon className="w-4 h-4" />
             </Button>
           </SheetClose>
-          <SheetTitle className="text-sm font-bold text-foreground uppercase tracking-widest">
-            Carrinho de Compras
-          </SheetTitle>
-          <div className="w-8" />
         </SheetHeader>
 
         {/* Frete Grátis */}
-        <div className="p-4 bg-blue-50 border-b">
+        <div className="p-3 md:p-4 bg-blue-50 border-b">
           <p className="text-[11px] font-medium text-foreground mb-1">
             {remainingForFreeShipping > 0 ? (
               <>Falta apenas <span className="text-primary font-bold">R$ {remainingForFreeShipping.toFixed(2).replace('.', ',')}</span> para obter <b>frete grátis</b></>
@@ -191,7 +145,7 @@ export function CartSheet() {
         </div>
 
         {/* Itens */}
-        <div className="flex-grow overflow-y-auto p-4 space-y-4">
+        <div className="overflow-y-auto p-4 md:p-5 space-y-3">
           {items.length === 0 ? (
             <div className="text-center py-20">
               <div className="w-16 h-16 bg-primary/5 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -207,52 +161,55 @@ export function CartSheet() {
           ) : (
             <div className="space-y-3">
               {items.map((item) => (
-                <div key={item.id} className="flex gap-3 bg-white p-3 rounded-2xl shadow-sm border border-primary/5 items-start">
-                  <div className="relative w-16 h-16 rounded-xl overflow-hidden shrink-0 border border-muted bg-muted/10">
-                    <Image src={item.images[0]} alt={item.name} fill className="object-contain" sizes="64px" />
+                <div key={item.id} className="relative grid grid-cols-[64px_1fr] gap-3 bg-white p-3 md:p-4 rounded-2xl border border-muted/10 items-center">
+                  <div className="relative w-16 h-16 rounded-xl overflow-hidden shrink-0 bg-muted/10">
+                    <Image src={item.images[0]} alt={item.name} fill className="object-contain" sizes="64px" loading="lazy" />
                   </div>
-                  <div className="flex-grow">
-                    <h4 className="font-bold text-sm leading-tight text-foreground line-clamp-1">{item.name}</h4>
-                    <p className="text-xs text-primary font-bold mt-1">R$ {item.price.toFixed(2).replace('.', ',')}</p>
+                  <div className="flex flex-col justify-center">
+                    <h4 className="font-medium text-sm leading-tight text-foreground line-clamp-2">{item.name}</h4>
+                    <p className="text-base text-foreground font-bold mt-1">R$ {item.price.toFixed(2).replace('.', ',')}</p>
                   </div>
-                  <div className="flex flex-col items-end gap-1">
-                    <div className="h-6 w-6 rounded-full bg-muted/70 text-foreground/80 text-[11px] flex items-center justify-center font-bold">
-                      {item.quantity}
+                  <div className="absolute right-3 bottom-3 flex items-center gap-2">
+                    <div className="flex items-center rounded-full bg-muted px-2 py-1">
+                      <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full"
+                        onClick={() => updateQuantity(item.id, Math.max(0, item.quantity - 1))}>−</Button>
+                      <span className="mx-1 text-sm font-bold min-w-6 text-center">{item.quantity}</span>
+                      <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full"
+                        onClick={() => updateQuantity(item.id, item.quantity + 1)}>+</Button>
                     </div>
-                    {confirmingDelete === item.id ? (
-                      <div className="flex items-center gap-1.5 bg-red-50/50 p-1 rounded-lg animate-in fade-in slide-in-from-right-2">
-                        <span className="text-[10px] font-bold text-red-500 ml-1">Excluir?</span>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="h-6 px-2 text-[10px] font-bold hover:bg-white text-muted-foreground"
-                          onClick={() => setConfirmingDelete(null)}
-                        >
-                          Não
-                        </Button>
-                        <Button 
-                          size="sm" 
-                          className="h-6 px-2 text-[10px] font-bold bg-red-500 hover:bg-red-600 text-white border-none"
-                          onClick={() => {
-                            removeFromCart(item.id);
-                            setConfirmingDelete(null);
-                          }}
-                        >
-                          Sim
-                        </Button>
-                      </div>
-                    ) : (
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-7 w-7 text-muted-foreground hover:text-red-500 hover:bg-red-50 rounded-full"
+                      onClick={() => setConfirmingDelete(item.id)}
+                      aria-label="Remover item"
+                    >
+                      <CloseIcon className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
+                  {confirmingDelete === item.id && (
+                    <div className="absolute right-3 bottom-12 flex items-center gap-1.5 bg-red-50/70 p-1.5 rounded-lg shadow">
+                      <span className="text-[10px] font-bold text-red-600 ml-1">Excluir?</span>
                       <Button 
                         variant="ghost" 
-                        size="icon" 
-                        className="h-7 w-7 text-muted-foreground hover:text-red-500 hover:bg-red-50 rounded-full"
-                        onClick={() => setConfirmingDelete(item.id)}
-                        aria-label="Remover item"
+                        size="sm" 
+                        className="h-6 px-2 text-[10px] font-bold hover:bg-white text-muted-foreground"
+                        onClick={() => setConfirmingDelete(null)}
                       >
-                        <CloseIcon className="w-3.5 h-3.5" />
+                        Não
                       </Button>
-                    )}
-                  </div>
+                      <Button 
+                        size="sm" 
+                        className="h-6 px-2 text-[10px] font-bold bg-red-500 hover:bg-red-600 text-white border-none"
+                        onClick={() => {
+                          removeFromCart(item.id);
+                          setConfirmingDelete(null);
+                        }}
+                      >
+                        Sim
+                      </Button>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -260,108 +217,34 @@ export function CartSheet() {
         </div>
 
         {/* Rodapé e Cupom */}
-        <div className="p-6 bg-white border-t flex flex-col gap-4 shrink-0">
-          {/* Oferta de Cupom (controlada pelo Admin) */}
-          {!couponApplied && (settings?.showCouponCTA ?? true) && (
-            <div className="space-y-3">
-              <div className="flex justify-between items-center px-1">
-                <div className="text-[11px] font-bold text-foreground/70 uppercase tracking-widest">
-                  Quer 10% na primeira compra?
-                </div>
-                <Dialog>
-                  <DialogTrigger asChild>
-                    <button className="text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 group px-3 py-1.5 rounded-full bg-primary text-white shadow hover:opacity-90">
-                      <Sparkles className="w-3 h-3 group-hover:animate-pulse" />
-                      Cupom Aqui
-                    </button>
-                  </DialogTrigger>
-                  <DialogContent className="w-[92vw] max-w-[360px] rounded-2xl p-0 overflow-hidden border-none shadow-2xl">
-                    <div className="bg-pink-gradient p-6 text-white text-center space-y-2">
-                      <div className="absolute right-3 top-3">
-                        <DialogClose asChild>
-                          <button className="w-7 h-7 rounded-full bg-white/20 hover:bg-white/30 text-white flex items-center justify-center">
-                            <CloseIcon className="w-4 h-4" />
-                          </button>
-                        </DialogClose>
-                      </div>
-                      <DialogHeader>
-                        <DialogTitle className="text-xl font-black text-white leading-tight">
-                          Cupom de 10% 🎁
-                        </DialogTitle>
-                      </DialogHeader>
-                      <p className="text-white/90 text-xs font-medium leading-relaxed">
-                        Preencha seus dados e libere seu código exclusivo.
-                      </p>
-                    </div>
-                    <div className="p-5 bg-white space-y-3">
-                      {!leadSubmitted ? (
-                        <>
-                          <Input 
-                            placeholder="Seu nome"
-                            value={leadName}
-                            onChange={(e) => setLeadName(e.target.value)}
-                            className="h-11 rounded-xl text-sm"
-                          />
-                          <Input 
-                            type="tel"
-                            placeholder="Seu WhatsApp"
-                            value={leadPhone}
-                            onChange={(e) => setLeadPhone(formatPhoneBR(e.target.value))}
-                            className="h-11 rounded-xl text-sm"
-                          />
-                          <Button 
-                            onClick={submitLeadFromCart}
-                            disabled={leadLoading}
-                            className="w-full h-11 rounded-xl bg-pink-gradient text-white font-black text-sm gap-2 shadow-lg shadow-pink-100 border-none"
-                          >
-                            {leadLoading ? 'Enviando...' : 'Liberar meu cupom'}
-                          </Button>
-                          <p className="text-[9px] text-center text-muted-foreground font-medium uppercase tracking-widest">
-                            Não enviamos spam
-                          </p>
-                        </>
-                      ) : (
-                        <div className="space-y-3 text-center">
-                          {activeCouponCode ? (
-                            <>
-                              <p className="text-sm font-medium text-foreground">Parabéns! Seu cupom:</p>
-                              <div className="flex items-center justify-between gap-2 bg-muted/30 border border-dashed border-primary/20 rounded-xl px-3 py-2">
-                                <span className="text-lg font-black text-primary tracking-widest uppercase">{activeCouponCode}</span>
-                                <Button 
-                                  variant="default"
-                                  className="h-9 px-3 rounded-lg text-xs font-bold"
-                                  onClick={async () => {
-                                    try {
-                                      await navigator.clipboard.writeText(activeCouponCode);
-                                      setCopyOk(true);
-                                      setTimeout(() => setCopyOk(false), 2000);
-                                    } catch {}
-                                  }}
-                                >
-                                  {copyOk ? 'Copiado!' : 'Copiar'}
-                                </Button>
-                              </div>
-                              <p className="text-[10px] text-muted-foreground">Use no campo de cupom do carrinho.</p>
-                            </>
-                          ) : (
-                            <p className="text-sm font-medium text-foreground">Cadastro realizado. Assim que liberarmos um cupom, você verá aqui.</p>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  </DialogContent>
-                </Dialog>
+        <div className="p-4 md:p-6 bg-white border-t flex flex-col gap-4 shrink-0 pb-[env(safe-area-inset-bottom)]">
+          {!couponApplied && (
+            <div className="space-y-2">
+              <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">
+                Quer 10% na primeira compra?{" "}
+                <button
+                  onClick={() => {
+                    if (typeof window !== 'undefined') {
+                      window.dispatchEvent(new Event('openLeadPopup'));
+                    }
+                  }}
+                  className="ml-2 text-primary underline decoration-dotted hover:opacity-80"
+                >
+                  Pegar cupom
+                </button>
               </div>
               {items.length > 0 && (
-              <div className="flex gap-2 w-full">
-                <Input 
-                  placeholder="Tem um cupom?" 
-                  value={couponInput}
-                  onChange={(e) => setCouponInput(e.target.value)}
-                  className="h-10 rounded-xl text-xs flex-1"
-                />
-                <Button onClick={handleApplyCoupon} className="h-10 px-4 rounded-xl text-xs font-bold shrink-0">Aplicar</Button>
-              </div>
+                <div className="flex gap-2">
+                  <Input 
+                    placeholder="Tem um cupom?" 
+                    value={couponInput}
+                    onChange={(e) => setCouponInput(e.target.value)}
+                    className="h-11 rounded-2xl text-sm flex-1"
+                  />
+                  <Button onClick={handleApplyCoupon} className="h-11 px-6 rounded-2xl text-sm font-bold shrink-0">
+                    Aplicar
+                  </Button>
+                </div>
               )}
             </div>
           )}
@@ -421,19 +304,19 @@ export function CartSheet() {
             <Button 
               disabled={items.length === 0}
               onClick={finalizeOrder}
-              className="w-full h-12 rounded-full text-sm font-bold bg-gradient-to-br from-emerald-500 to-green-500 hover:from-emerald-500 hover:to-green-600 text-white border-none gap-2"
+              className="w-full h-12 rounded-full text-sm font-bold bg-emerald-500 hover:bg-emerald-600 text-white border-none gap-2"
             >
               <WhatsAppIcon className="w-4 h-4 fill-white" />
               FINALIZAR NO WHATSAPP
             </Button>
             <SheetClose asChild>
-              <Button variant="outline" className="w-full h-11 rounded-full text-xs font-bold uppercase tracking-widest">
+              <Button variant="outline" className="w-full h-12 rounded-full text-sm font-bold">
                 CONTINUAR COMPRANDO
               </Button>
             </SheetClose>
           </div>
 
-          <div className="flex justify-around items-center py-4 border-t border-muted gap-2 w-full">
+          <div className="flex justify-center items-center py-4 border-t border-muted gap-6 w-full">
             <div className="flex items-center gap-2 text-[10px] text-muted-foreground uppercase tracking-wider font-bold">
               <RotateCcw className="w-4 h-4 text-primary/40" />
               <span>7 dias para <b className="text-foreground">troca grátis</b></span>
