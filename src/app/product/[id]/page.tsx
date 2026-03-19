@@ -5,34 +5,29 @@
  import { useEffect, useMemo, useState } from 'react'
  import { useParams, useRouter } from 'next/navigation'
 import { useData } from '@/context/data-context'
- import { useCart } from '@/context/cart-context'
- import { Button } from '@/components/ui/button'
- import { Badge } from '@/components/ui/badge'
- import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { useCart } from '@/context/cart-context'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
- import { ProductCard } from '@/components/product-card'
-import { WhatsAppIcon } from '@/components/whatsapp-icon'
+import { ProductCard } from '@/components/product-card'
+import { WhatsAppIcon } from "@/components/whatsapp-icon"
+import { WHATSAPP_URL } from "@/lib/whatsapp"
 import { Star } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
- 
- export default function ProductDetailPage() {
-   const params = useParams()
-   const router = useRouter()
-   const { products } = useData()
-   const { addToCart } = useCart()
-   const [selectedImage, setSelectedImage] = useState<string | null>(null)
-   const [selectedColor, setSelectedColor] = useState<string | null>(null)
-   const [selectedSize, setSelectedSize] = useState<string | null>(null)
-   const [qty, setQty] = useState(1)
+
+export default function ProductDetailPage() {
+  const params = useParams()
+  const router = useRouter()
+  const { products } = useData()
+  const { addToCart } = useCart()
+  const [selectedImage, setSelectedImage] = useState<string | null>(null)
+  const [selectedColor, setSelectedColor] = useState<string | null>(null)
+  const [selectedSize, setSelectedSize] = useState<string | null>(null)
+  const [qty, setQty] = useState(1)
   const [reviews, setReviews] = useState<{ name: string; rating: number; comment: string; createdAt: string }[]>([])
-  const [reviewName, setReviewName] = useState('')
-  const [reviewRating, setReviewRating] = useState(5)
-  const [reviewComment, setReviewComment] = useState('')
-  const [showAllCompactReviews, setShowAllCompactReviews] = useState(false)
-  const [isLogged, setIsLogged] = useState(false)
-  const [currentUserName, setCurrentUserName] = useState('')
-  const [loginDialogOpen, setLoginDialogOpen] = useState(false)
+  const [reviewsShown, setReviewsShown] = useState(10)
  
    const product = useMemo(() => {
      const id = String(params?.id || '')
@@ -75,13 +70,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
     }
   }, [product, reviewsByProduct])
   
-  useEffect(() => {
-    const logged = typeof window !== 'undefined' && localStorage.getItem('nenem_is_logged') === 'true'
-    const name = typeof window !== 'undefined' ? (localStorage.getItem('nenem_user_name') || '') : ''
-    setIsLogged(!!logged)
-    setCurrentUserName(name)
-    if (logged && !reviewName) setReviewName(name)
-  }, [])
+  useEffect(() => {}, [])
  
    if (!product) {
      return (
@@ -124,6 +113,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
    const installmentPrice = (baseShown / 12).toFixed(2).replace('.', ',')
    const cashPrice = (baseShown * 0.95).toFixed(2).replace('.', ',')
  
+  const mainImage = selectedImage ?? (product?.images?.[0] ?? null)
+
    const finalizeAdd = () => {
      const withVariant = {
        ...product,
@@ -163,40 +154,36 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
   }
   const conversionText = generateConversionDescription()
   const avgRating = reviews.length ? (reviews.reduce((s, r) => s + r.rating, 0) / reviews.length) : 0
-  const handleSubmitReview = async () => {
-    if (!isLogged) {
-      setLoginDialogOpen(true)
-      return
-    }
-    if (!reviewName.trim() || !reviewComment.trim()) return
-    const entry = { name: reviewName.trim(), rating: reviewRating, comment: reviewComment.trim(), createdAt: new Date().toISOString() }
-    await addProductReview(String(product.id), { productId: String(product.id), name: entry.name, rating: entry.rating, comment: entry.comment })
-    setReviewName('')
-    setReviewRating(5)
-    setReviewComment('')
-  }
  
    return (
      <div className="py-8 bg-background">
        <div className="container-standard">
-         <div className="grid lg:grid-cols-2 gap-8">
-           <div className="flex gap-3">
-             <div className="flex flex-col gap-2">
+        <div className="grid lg:grid-cols-2 gap-8 items-start">
+          <div className="flex flex-row items-start gap-4 sticky top-8 h-max">
+            <div className="flex flex-col gap-2 w-16 shrink-0">
               {(product.images || []).map((img) => (
                  <button
                    key={img}
                    onClick={() => setSelectedImage(img)}
-                   className={`relative w-16 h-20 rounded-xl overflow-hidden border ${selectedImage === img ? 'border-primary' : 'border-muted'} bg-white`}
+                  className={`relative w-16 h-20 rounded-xl overflow-hidden border ${mainImage === img ? 'border-primary' : 'border-muted'} bg-white`}
                  >
                   <Image src={img} alt={product.name} fill className="object-cover" loading="lazy" />
                  </button>
                ))}
              </div>
-             <div className="relative flex-1 aspect-square rounded-2xl overflow-hidden bg-white border border-muted">
-               {selectedImage && (
-                <Image src={selectedImage} alt={product.name} fill className="object-contain" loading="lazy" />
-               )}
-             </div>
+            <div className="flex-1 min-w-0">
+              {mainImage && (
+                <Image
+                  src={mainImage}
+                  alt={product.name}
+                  width={800}
+                  height={800}
+                  className="w-full h-auto rounded-xl border bg-white shadow-sm"
+                  quality={80}
+                  priority
+                />
+              )}
+            </div>
            </div>
  
            <div className="space-y-4">
@@ -260,18 +247,17 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
              <div className="flex flex-col sm:flex-row gap-2">
                <Button className="rounded-full h-11 px-8 font-bold" onClick={finalizeAdd}>Comprar</Button>
                <Button variant="outline" asChild className="rounded-full h-11 px-8 font-bold">
-                 <a href={`https://wa.me/5531999384130?text=${encodeURIComponent(`Olá! Tenho uma dúvida sobre: ${product.name}`)}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2">
+                 <a href={`${WHATSAPP_URL}?text=${encodeURIComponent(`Olá! Tenho uma dúvida sobre: ${product.name}`)}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2">
                    <WhatsAppIcon className="w-4 h-4 fill-emerald-600" />
                    Tirar dúvida pelo Whats
                  </a>
                </Button>
              </div>
  
-             <Tabs defaultValue="descricao" className="mt-6">
+            <Tabs defaultValue="descricao" className="mt-6">
                <TabsList className="bg-white p-1 rounded-xl border">
                  <TabsTrigger value="descricao" className="rounded-lg">Descrição Geral</TabsTrigger>
                  <TabsTrigger value="itens" className="rounded-lg">Itens Inclusos</TabsTrigger>
-                 <TabsTrigger value="avaliacoes" className="rounded-lg">Avaliações</TabsTrigger>
                </TabsList>
                <TabsContent value="descricao" className="bg-white rounded-2xl border p-4 mt-2 text-sm text-muted-foreground leading-relaxed">
                  <p className="mb-2">{conversionText}</p>
@@ -280,187 +266,64 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
                <TabsContent value="itens" className="bg-white rounded-2xl border p-4 mt-2 text-sm text-muted-foreground leading-relaxed">
                  Conteúdo do kit conforme variação selecionada.
                </TabsContent>
-               <TabsContent value="avaliacoes" className="bg-white rounded-2xl border p-4 mt-2 text-sm text-muted-foreground leading-relaxed">
-                 <div className="flex items-center gap-2 mb-3">
-                   <div className="flex items-center">
-                     {Array.from({ length: 5 }).map((_, i) => {
-                       const active = reviews.length === 0 ? true : i < Math.round(avgRating);
-                       return (
-                         <Star
-                           key={i}
-                           className={`w-4 h-4 ${active ? 'text-yellow-500' : 'text-muted-foreground'}`}
-                           fill={active ? 'currentColor' : 'none'}
-                         />
-                       );
-                     })}
-                   </div>
-                   <span className="text-xs">{reviews.length > 0 ? `${avgRating.toFixed(1)} de 5 (${reviews.length} avaliações)` : 'Seja o primeiro a avaliar'}</span>
-                 </div>
-                <div className="grid grid-cols-1 gap-3 mb-4">
-                  <div className="space-y-1">
-                    <span className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Seu nome</span>
-                    <input className="rounded-xl border h-11 px-3" placeholder="Digite seu nome" value={reviewName} onChange={(e) => setReviewName(e.target.value)} />
-                  </div>
-                  <div className="space-y-1">
-                    <span className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Sua avaliação</span>
-                    <textarea className="rounded-xl border px-3 py-2 h-24" placeholder="Escreva sua opinião" value={reviewComment} onChange={(e) => setReviewComment(e.target.value)} />
-                  </div>
-                  <div className="space-y-1">
-                    <span className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Quantas estrelas?</span>
-                    <div className="flex items-center gap-2 h-11">
-                      {Array.from({ length: 5 }).map((_, i) => {
-                        const idx = i + 1;
-                        const active = idx <= reviewRating;
-                        return (
-                          <button
-                            key={idx}
-                            type="button"
-                            onClick={() => setReviewRating(idx)}
-                            className="p-0 m-0 bg-transparent border-none cursor-pointer"
-                            aria-label={`Marcar ${idx} estrelas`}
-                            title={`${idx} estrelas`}
-                          >
-                            <Star className={`w-5 h-5 ${active ? 'text-yellow-500' : 'text-muted-foreground'}`} fill={active ? 'currentColor' : 'none'} />
-                          </button>
-                        );
-                      })}
-                      <span className="text-[11px] text-muted-foreground ml-2">{reviewRating} de 5</span>
+             </Tabs>
+            
+            <div className="bg-white rounded-2xl border p-4 mt-3">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="flex items-center">
+                  {Array.from({ length: 5 }).map((_, i) => {
+                    const active = reviews.length === 0 ? true : i < Math.round(avgRating);
+                    return (
+                      <Star
+                        key={i}
+                        className={`w-4 h-4 ${active ? 'text-yellow-500' : 'text-muted-foreground'}`}
+                        fill={active ? 'currentColor' : 'none'}
+                      />
+                    );
+                  })}
+                </div>
+                <span className="text-xs">{reviews.length > 0 ? `${avgRating.toFixed(1)} de 5 (${reviews.length} avaliações)` : 'Seja o primeiro a avaliar'}</span>
+              </div>
+              <div className="space-y-3">
+                {reviews.slice(0, reviewsShown).map((r, idx) => (
+                  <div key={idx} className="flex items-start gap-3 border-t pt-3 first:pt-0 first:border-t-0">
+                    <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs uppercase shrink-0">
+                      {r.name.substring(0, 2)}
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-foreground text-sm">{r.name}</span>
+                        <div className="flex items-center">
+                          {Array.from({ length: 5 }).map((_, i) => {
+                            const active = i < r.rating;
+                            return (
+                              <Star
+                                key={i}
+                                className={`w-3.5 h-3.5 ${active ? 'text-yellow-500' : 'text-muted-foreground'}`}
+                                fill={active ? 'currentColor' : 'none'}
+                              />
+                            );
+                          })}
+                        </div>
+                      </div>
+                      <div className="inline-block bg-muted/30 rounded-2xl px-3 py-2 mt-1">
+                        <p className="text-sm text-foreground leading-relaxed">{r.comment}</p>
+                      </div>
                     </div>
                   </div>
+                ))}
+              </div>
+              {reviewsShown < reviews.length && (
+                <div className="pt-3">
+                  <Button className="rounded-full h-9 px-5 text-xs font-bold" onClick={() => setReviewsShown(s => Math.min(s + 10, reviews.length))}>
+                    Ver mais 10
+                  </Button>
                 </div>
-                 <Button className="rounded-full h-10 px-6" onClick={handleSubmitReview}>Enviar avaliação</Button>
-                 <div className="mt-6 space-y-3">
-                   {reviews.map((r, idx) => (
-                     <div key={idx} className="flex items-start gap-3">
-                       <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs uppercase shrink-0">
-                         {r.name.substring(0, 2)}
-                       </div>
-                       <div className="flex-1">
-                         <div className="flex items-center gap-2">
-                           <span className="font-bold text-foreground text-sm">{r.name}</span>
-                           <div className="flex items-center">
-                             {Array.from({ length: 5 }).map((_, i) => {
-                               const active = i < r.rating;
-                               return (
-                                 <Star
-                                   key={i}
-                                   className={`w-3.5 h-3.5 ${active ? 'text-yellow-500' : 'text-muted-foreground'}`}
-                                   fill={active ? 'currentColor' : 'none'}
-                                 />
-                               );
-                             })}
-                           </div>
-                         </div>
-                         <div className="inline-block bg-muted/30 rounded-2xl px-3 py-2 mt-1">
-                           <p className="text-sm text-foreground leading-relaxed">{r.comment}</p>
-                         </div>
-                       </div>
-                     </div>
-                   ))}
-                 </div>
-               </TabsContent>
-             </Tabs>
+              )}
+            </div>
            </div>
          </div>
  
-        <div className="mt-6 bg-white rounded-2xl border p-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="flex items-center">
-                {Array.from({ length: 5 }).map((_, i) => {
-                  const active = reviews.length === 0 ? true : i < Math.round(avgRating);
-                  return (
-                    <Star
-                      key={i}
-                      className={`w-4 h-4 ${active ? 'text-yellow-500' : 'text-muted-foreground'}`}
-                      fill={active ? 'currentColor' : 'none'}
-                    />
-                  );
-                })}
-              </div>
-              <span className="text-xs text-muted-foreground">
-                {reviews.length > 0 ? `${avgRating.toFixed(1)} de 5 • ${reviews.length} avaliações` : 'Seja o primeiro a avaliar'}
-              </span>
-            </div>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
-            <input className="rounded-xl border h-10 px-3 text-sm" placeholder="Seu nome" value={reviewName} onChange={(e) => setReviewName(e.target.value)} />
-            <div className="flex items-center gap-2 h-10">
-              {Array.from({ length: 5 }).map((_, i) => {
-                const idx = i + 1;
-                const active = idx <= reviewRating;
-                return (
-                  <button
-                    key={idx}
-                    type="button"
-                    onClick={() => setReviewRating(idx)}
-                    className="p-0 m-0 bg-transparent border-none cursor-pointer"
-                    aria-label={`Marcar ${idx} estrelas`}
-                    title={`${idx} estrelas`}
-                  >
-                    <Star className={`w-4 h-4 ${active ? 'text-yellow-500' : 'text-muted-foreground'}`} fill={active ? 'currentColor' : 'none'} />
-                  </button>
-                );
-              })}
-              <span className="text-[11px] text-muted-foreground ml-1">{reviewRating} de 5</span>
-            </div>
-            <textarea className="rounded-xl border px-3 py-2 md:col-span-2 h-16 text-sm" placeholder="Escreva sua avaliação" value={reviewComment} onChange={(e) => setReviewComment(e.target.value)} />
-          </div>
-          <div className="mt-2 flex items-center justify-between">
-            <Button className="rounded-full h-9 px-5 text-xs font-bold" onClick={handleSubmitReview}>Enviar avaliação</Button>
-            {reviews.length > 3 && (
-              <button className="text-xs font-bold text-primary underline-offset-2 hover:underline" onClick={() => setShowAllCompactReviews(s => !s)}>
-                {showAllCompactReviews ? 'Mostrar menos' : 'Ver mais avaliações'}
-              </button>
-            )}
-          </div>
-          
-          <Dialog open={loginDialogOpen} onOpenChange={setLoginDialogOpen}>
-            <DialogContent className="rounded-2xl">
-              <DialogHeader>
-                <DialogTitle>Entrar para enviar a avaliação</DialogTitle>
-                <DialogDescription className="text-sm">
-                  Você pode escrever sua avaliação agora. Para enviar, faça login rapidamente.
-                </DialogDescription>
-              </DialogHeader>
-              <DialogFooter>
-                <Button asChild className="rounded-full h-9 px-5 text-xs font-bold">
-                  <Link href="/login">Entrar</Link>
-                </Button>
-                <Button variant="ghost" className="rounded-full h-9 px-5 text-xs font-bold" onClick={() => setLoginDialogOpen(false)}>
-                  Cancelar
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-          <div className="mt-3 space-y-2">
-            {(showAllCompactReviews ? reviews : reviews.slice(0, 5)).map((r, idx) => (
-              <div key={idx} className="flex items-start gap-2">
-                <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-[10px] uppercase shrink-0">
-                  {r.name.substring(0, 2)}
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-foreground text-sm">{r.name}</span>
-                    <div className="flex items-center">
-                      {Array.from({ length: 5 }).map((_, i) => {
-                        const active = i < r.rating;
-                        return (
-                          <Star
-                            key={i}
-                            className={`w-3 h-3 ${active ? 'text-yellow-500' : 'text-muted-foreground'}`}
-                            fill={active ? 'currentColor' : 'none'}
-                          />
-                        );
-                      })}
-                    </div>
-                  </div>
-                  <p className="text-sm text-foreground leading-relaxed line-clamp-2">{r.comment}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
 
          {related.length > 0 && (
            <div className="mt-10">

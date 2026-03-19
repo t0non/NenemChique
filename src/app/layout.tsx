@@ -49,8 +49,15 @@ export default function RootLayout({
               console.error = function(){
                 for (var i=0;i<arguments.length;i++){
                   var a = arguments[i];
-                  if (typeof a === 'string' && a.indexOf('net::ERR_ABORTED') !== -1 && a.indexOf('_rsc=') !== -1) {
-                    return;
+                  if (typeof a === 'string') {
+                    var s = String(a);
+                    if (
+                      (s.indexOf('net::ERR_ABORTED') !== -1 && s.indexOf('_rsc=') !== -1) ||
+                      s.indexOf('webpack.hot-update') !== -1 ||
+                      s.indexOf('_next/static/webpack') !== -1
+                    ) {
+                      return;
+                    }
                   }
                 }
                 return o.apply(console, arguments);
@@ -79,17 +86,17 @@ export default function RootLayout({
         <meta name="twitter:card" content="summary_large_image" />
         <script
           dangerouslySetInnerHTML={{
-            __html: JSON.stringify({
-              '@context': 'https://schema.org',
-              '@type': 'Organization',
-              name: 'Neném Chique',
-              url: 'https://nenemchique.com.br',
-              aggregateRating: {
-                '@type': 'AggregateRating',
-                ratingValue: '4.9',
-                reviewCount: '312'
+            __html: `{
+              "@context": "https://schema.org",
+              "@type": "Organization",
+              "name": "Neném Chique",
+              "url": "https://nenemchique.com.br",
+              "aggregateRating": {
+                "@type": "AggregateRating",
+                "ratingValue": "4.9",
+                "reviewCount": "312"
               }
-            })
+            }`
           }}
           type="application/ld+json"
         />

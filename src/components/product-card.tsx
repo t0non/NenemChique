@@ -8,7 +8,8 @@ import { Product } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useCart } from '@/context/cart-context';
-import { WhatsAppIcon } from './whatsapp-icon';
+import { WhatsAppIcon } from "@/components/whatsapp-icon"
+import { WHATSAPP_URL } from "@/lib/whatsapp";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
@@ -137,7 +138,10 @@ export function ProductCard({ product }: { product: Product }) {
       
       {/* Informações: Tipografia Leve e Cores Sóbrias */}
       <div className="flex flex-col items-center w-full px-2">
-        <h3 className="text-[14px] font-light text-foreground/80 mb-2 h-[44px] md:h-[40px] flex items-center justify-center leading-snug clamp-2">
+        <h3
+          className="text-[14px] font-light text-foreground/80 mb-2 h-[60px] md:h-[60px] flex items-center justify-center leading-5 text-center clamp-3 overflow-hidden whitespace-normal"
+          title={product.name}
+        >
           {product.name}
         </h3>
         
@@ -198,7 +202,7 @@ export function ProductCard({ product }: { product: Product }) {
             className="w-full h-11 rounded-full font-medium border-emerald-500 text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 bg-transparent px-4 text-[9px] md:text-[10px] uppercase tracking-[0.12em] md:tracking-widest"
           >
             <a
-              href={`https://wa.me/5531999384130?text=${encodeURIComponent(`Olá! Tenho uma dúvida sobre: ${product.name}`)}`}
+              href={`${WHATSAPP_URL}?text=${encodeURIComponent(`Olá! Tenho uma dúvida sobre: ${product.name}`)}`}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center justify-center w-full h-full gap-2"

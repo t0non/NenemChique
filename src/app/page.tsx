@@ -10,33 +10,17 @@ import { ProductCard } from '@/components/product-card';
 import dynamic from 'next/dynamic';
 import { useCart } from '@/context/cart-context';
 import { useData } from '@/context/data-context';
-import { WhatsAppIcon } from '@/components/whatsapp-icon';
+import { WhatsAppIcon } from "@/components/whatsapp-icon"
+import { WHATSAPP_URL } from "@/lib/whatsapp";
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 import { Product } from '@/lib/types';
-import varal from '@/imagens/Varalzinho.png';
 import { Progress } from '@/components/ui/progress';
 
 const Testimonials = dynamic(() => import('@/components/testimonials').then(m => m.Testimonials), { ssr: false });
 const InstagramSection = dynamic(() => import('@/components/instagram-section').then(m => m.InstagramSection), { ssr: false });
 const FAQ = dynamic(() => import('@/components/faq').then(m => m.FAQ), { ssr: false });
 const HeroSlider = dynamic(() => import('@/components/hero-slider').then(m => m.HeroSlider), { ssr: false });
-const VaralzinhoDivider = dynamic(() => Promise.resolve(() => (
-  <div className="w-full bg-[#FDF8FB] py-0 md:py-1 overflow-hidden border-y border-primary/5 -mt-[14vh] sm:-mt-12 md:-mt-10">
-    <div className="relative w-full h-16 sm:h-24 md:h-36 overflow-hidden">
-      <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-[180vw] md:w-[240vw] h-full">
-        <Image
-          src={varal}
-          alt="Varalzinho decorativo"
-          fill
-          className="object-contain object-center"
-          priority={false}
-          loading="lazy"
-        />
-      </div>
-    </div>
-  </div>
-)), { ssr: false });
 
 export default function Home() {
   const { items, addToCart, removeFromCart, subtotal } = useCart();
@@ -76,7 +60,7 @@ export default function Home() {
   };
 
   const Section = ({ title, description, products, id, badgeText }: { title: string, description: string, products: any[], id?: string, badgeText?: string }) => (
-    <section id={id} className="py-8 bg-white first-of-type:bg-[#FDF8FB] even:bg-[#FDF8FB]">
+    <section id={id} className="py-8 bg-white">
       <div className="container-standard">
         <div className="max-w-2xl mx-auto mb-6 text-center">
           {badgeText && <Badge className="bg-primary/10 text-primary border-none mb-2 px-4 py-1">{badgeText}</Badge>}
@@ -105,7 +89,7 @@ export default function Home() {
 
   return (
     <div className="flex flex-col font-sans">
-      <section className="relative flex items-start md:items-center bg-[#FDF8FB] overflow-hidden pt-2 pb-0 md:py-6 md:min-h-[60vh]">
+      <section className="relative flex items-start md:items-center bg-white overflow-hidden pt-2 pb-0 md:py-6 md:min-h-[60vh]">
         <div className="container-standard z-10 grid lg:grid-cols-2 gap-5 items-start md:items-center">
           <div className="max-w-xl animate-in fade-in duration-700">
             <div className="flex items-center gap-2 mb-4">
@@ -151,9 +135,8 @@ export default function Home() {
       </section>
 
       <HeroSlider />
-      <VaralzinhoDivider />
 
-      <section className="py-8 bg-[#FDF8FB]">
+      <section className="pt-2 pb-8 bg-white">
         <div className="container-standard">
           <div className="max-w-2xl mx-auto mb-6 text-center">
             <Badge className="bg-primary/10 text-primary border-none mb-2 px-4 py-1">Navegue</Badge>
@@ -270,7 +253,7 @@ export default function Home() {
               </ul>
               <div className="mt-4">
                 <Button asChild className="rounded-full">
-                  <a href="https://wa.me/5531999384130" target="_blank" rel="noopener noreferrer">Agendar retirada</a>
+                  <a href={WHATSAPP_URL} target="_blank" rel="noopener noreferrer">Agendar retirada</a>
                 </Button>
                 <Button onClick={calcularRota} className="rounded-full ml-2">
                   Calcular rota até a loja
@@ -290,7 +273,7 @@ export default function Home() {
                 Nossas especialistas montam uma lista personalizada para você.
               </p>
               <Button size="lg" className="bg-white text-primary hover:bg-white/95 h-12 px-10 rounded-full text-xs font-bold uppercase tracking-widest group border-none">
-                <a href="https://wa.me/5531999384130" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2">
+                <a href={WHATSAPP_URL} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2">
                   <WhatsAppIcon className="w-4 h-4 fill-primary" />
                   Chamar no WhatsApp
                 </a>

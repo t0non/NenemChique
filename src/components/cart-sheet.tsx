@@ -56,7 +56,7 @@ export function CartSheet() {
   };
 
   const finalizeOrder = async () => {
-    const telefoneLoja = "5531999384130";
+    const telefoneLoja = "553196244487";
     const code = await ensureOrderCode();
 
     const ua = typeof navigator !== 'undefined' ? navigator.userAgent : '';
@@ -118,21 +118,21 @@ export function CartSheet() {
           )}
         </Button>
       </SheetTrigger>
-      <SheetContent side="right" className="w-[360px] sm:w-[380px] md:w-[420px] max-w-[95vw] h-[100svh] md:h-screen grid grid-rows-[auto,1fr,auto] overflow-hidden p-0 border-l border-primary/10 rounded-l-2xl">
-        <SheetHeader className="sticky top-0 z-20 p-4 md:p-5 border-b bg-white flex items-center justify-center space-y-0">
+      <SheetContent side="right" className="w-[360px] sm:w-[380px] md:w-[420px] max-w-[95vw] h-[100svh] md:h-screen grid grid-rows-[auto_auto_1fr_auto] overflow-hidden p-0 border-l border-primary/10 rounded-l-2xl">
+        <SheetHeader className="sticky top-0 z-20 p-3 md:p-4 border-b bg-white flex items-center justify-center space-y-0">
           <SheetTitle className="text-xs font-bold text-foreground uppercase tracking-[0.25em]">
             CARRINHO DE COMPRAS
           </SheetTitle>
           <SheetClose asChild>
-            <Button aria-label="Fechar carrinho" variant="ghost" size="icon" className="absolute right-3 top-3 h-9 w-9 rounded-full hover:bg-muted">
+            <Button aria-label="Fechar carrinho" variant="ghost" size="icon" className="absolute right-2.5 top-2.5 h-8 w-8 rounded-full hover:bg-muted">
               <CloseIcon className="w-4 h-4" />
             </Button>
           </SheetClose>
         </SheetHeader>
 
         {/* Frete Grátis */}
-        <div className="p-3 md:p-4 bg-blue-50 border-b">
-          <p className="text-[11px] font-medium text-foreground mb-1">
+        <div className="p-2 md:p-3 bg-blue-50/70 border-b">
+          <p className="text-[11px] font-medium text-foreground mb-1 leading-tight">
             {remainingForFreeShipping > 0 ? (
               <>Falta apenas <span className="text-primary font-bold">R$ {remainingForFreeShipping.toFixed(2).replace('.', ',')}</span> para obter <b>frete grátis</b></>
             ) : (
@@ -141,13 +141,13 @@ export function CartSheet() {
               </span>
             )}
           </p>
-          <Progress value={progressPercentage} className="h-1.5 bg-muted rounded-full" />
+          <Progress value={progressPercentage} className="h-1 bg-muted rounded-full" />
         </div>
 
         {/* Itens */}
-        <div className="overflow-y-auto p-4 md:p-5 space-y-3">
+        <div className="overflow-y-auto p-3 md:p-4 space-y-3">
           {items.length === 0 ? (
-            <div className="text-center py-20">
+            <div className="text-center py-16">
               <div className="w-16 h-16 bg-primary/5 rounded-full flex items-center justify-center mx-auto mb-4">
                 <ShoppingCart className="w-8 h-8 text-primary/30" />
               </div>
@@ -161,26 +161,26 @@ export function CartSheet() {
           ) : (
             <div className="space-y-3">
               {items.map((item) => (
-                <div key={item.id} className="relative grid grid-cols-[64px_1fr] gap-3 bg-white p-3 md:p-4 rounded-2xl border border-muted/10 items-center">
+                <div key={item.id} className="relative grid grid-cols-[64px_1fr_auto] gap-3 bg-white p-3 md:p-3.5 rounded-2xl border border-muted/10 items-center">
                   <div className="relative w-16 h-16 rounded-xl overflow-hidden shrink-0 bg-muted/10">
                     <Image src={item.images[0]} alt={item.name} fill className="object-contain" sizes="64px" loading="lazy" />
                   </div>
                   <div className="flex flex-col justify-center">
                     <h4 className="font-medium text-sm leading-tight text-foreground line-clamp-2">{item.name}</h4>
-                    <p className="text-base text-foreground font-bold mt-1">R$ {item.price.toFixed(2).replace('.', ',')}</p>
+                    <p className="text-sm md:text-base text-foreground font-bold mt-1">R$ {item.price.toFixed(2).replace('.', ',')}</p>
                   </div>
-                  <div className="absolute right-3 bottom-3 flex items-center gap-2">
-                    <div className="flex items-center rounded-full bg-muted px-2 py-1">
-                      <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full"
-                        onClick={() => updateQuantity(item.id, Math.max(0, item.quantity - 1))}>−</Button>
+                  <div className="flex items-center gap-2 self-center justify-self-end">
+                    <div className="flex items-center rounded-full bg-muted px-2 py-1 shadow-sm">
+                      <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full"
+                        onClick={() => updateQuantity(item.id, Math.max(1, item.quantity - 1))}>−</Button>
                       <span className="mx-1 text-sm font-bold min-w-6 text-center">{item.quantity}</span>
-                      <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full"
+                      <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full"
                         onClick={() => updateQuantity(item.id, item.quantity + 1)}>+</Button>
                     </div>
                     <Button 
                       variant="ghost" 
                       size="icon" 
-                      className="h-7 w-7 text-muted-foreground hover:text-red-500 hover:bg-red-50 rounded-full"
+                      className="h-8 w-8 text-muted-foreground hover:text-red-500 hover:bg-red-50 rounded-full"
                       onClick={() => setConfirmingDelete(item.id)}
                       aria-label="Remover item"
                     >
@@ -188,7 +188,7 @@ export function CartSheet() {
                     </Button>
                   </div>
                   {confirmingDelete === item.id && (
-                    <div className="absolute right-3 bottom-12 flex items-center gap-1.5 bg-red-50/70 p-1.5 rounded-lg shadow">
+                    <div className="absolute right-3 top-3 flex items-center gap-1.5 bg-red-50/70 p-1.5 rounded-lg shadow">
                       <span className="text-[10px] font-bold text-red-600 ml-1">Excluir?</span>
                       <Button 
                         variant="ghost" 
@@ -217,7 +217,7 @@ export function CartSheet() {
         </div>
 
         {/* Rodapé e Cupom */}
-        <div className="p-4 md:p-6 bg-white border-t flex flex-col gap-4 shrink-0 pb-[env(safe-area-inset-bottom)]">
+        <div className="p-3 md:p-4 bg-white border-t flex flex-col gap-3 shrink-0 pb-[env(safe-area-inset-bottom)]">
           {!couponApplied && (
             <div className="space-y-2">
               <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">
@@ -239,9 +239,9 @@ export function CartSheet() {
                     placeholder="Tem um cupom?" 
                     value={couponInput}
                     onChange={(e) => setCouponInput(e.target.value)}
-                    className="h-11 rounded-2xl text-sm flex-1"
+                    className="h-10 rounded-2xl text-sm flex-1"
                   />
-                  <Button onClick={handleApplyCoupon} className="h-11 px-6 rounded-2xl text-sm font-bold shrink-0">
+                  <Button onClick={handleApplyCoupon} className="h-10 px-5 rounded-2xl text-sm font-bold shrink-0">
                     Aplicar
                   </Button>
                 </div>
@@ -304,19 +304,19 @@ export function CartSheet() {
             <Button 
               disabled={items.length === 0}
               onClick={finalizeOrder}
-              className="w-full h-12 rounded-full text-sm font-bold bg-emerald-500 hover:bg-emerald-600 text-white border-none gap-2"
+              className="w-full h-11 rounded-full text-sm font-bold bg-emerald-500 hover:bg-emerald-600 text-white border-none gap-2"
             >
               <WhatsAppIcon className="w-4 h-4 fill-white" />
               FINALIZAR NO WHATSAPP
             </Button>
             <SheetClose asChild>
-              <Button variant="outline" className="w-full h-12 rounded-full text-sm font-bold">
+              <Button variant="outline" className="w-full h-10 rounded-full text-sm font-bold">
                 CONTINUAR COMPRANDO
               </Button>
             </SheetClose>
           </div>
 
-          <div className="flex justify-center items-center py-4 border-t border-muted gap-6 w-full">
+          <div className="flex justify-center items-center py-3 border-t border-muted gap-6 w-full">
             <div className="flex items-center gap-2 text-[10px] text-muted-foreground uppercase tracking-wider font-bold">
               <RotateCcw className="w-4 h-4 text-primary/40" />
               <span>7 dias para <b className="text-foreground">troca grátis</b></span>

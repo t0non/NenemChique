@@ -189,10 +189,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   };
   
   const updateQuantity = (productId: string, quantity: number) => {
-    setItems(prev => {
-      if (quantity <= 0) return prev.filter(i => i.id !== productId);
-      return prev.map(i => i.id === productId ? { ...i, quantity } : i);
-    });
+    setItems(prev =>
+      prev.map(i => i.id === productId ? { ...i, quantity: Math.max(1, quantity) } : i)
+    );
   };
 
   const applyCoupon = async (code: string) => {

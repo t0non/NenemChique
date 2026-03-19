@@ -13,6 +13,7 @@ const slides = [
   path.join(process.cwd(), 'src', 'imagens', 'SLIDE (3).png'),
 ];
 const envJsPath = path.join(outDir, 'env.js');
+const srcImagesDir = path.join(process.cwd(), 'src', 'imagens');
  
 const content = `
 RewriteEngine On
@@ -91,6 +92,29 @@ RewriteRule ^.*$ /index.html [L]
     console.log('Slides copiados para', outImagesDir);
   } catch (err) {
     console.warn('Falha ao copiar slides:', err.message);
+  }
+  try {
+    if (fs.existsSync(srcImagesDir)) {
+      if (!fs.existsSync(outImagesDir)) fs.mkdirSync(outImagesDir, { recursive: true });
+      const entries = fs.readdirSync(srcImagesDir, { withFileTypes: true });
+      entries.forEach((e) => {
+        const src = path.join(srcImagesDir, e.name);
+        const dest = path.join(outImagesDir, e.name);
+        if (e.isDirectory()) {
+          fs.mkdirSync(dest, { recursive: true });
+          fs.readdirSync(src).forEach((name) => {
+            const s = path.join(src, name);
+            const d = path.join(dest, name);
+            fs.copyFileSync(s, d);
+          });
+        } else if (e.isFile()) {
+          fs.copyFileSync(src, dest);
+        }
+      });
+      console.log('Imagens copiadas de src/imagens para', outImagesDir);
+    }
+  } catch (err) {
+    console.warn('Falha ao copiar imagens:', err.message);
   }
   try {
     const envContent = `window.__NENEM_ENV={SUPABASE_URL:"${process.env.NEXT_PUBLIC_SUPABASE_URL || ''}",SUPABASE_ANON_KEY:"${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''}"};`;

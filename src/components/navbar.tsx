@@ -5,7 +5,8 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { CartSheet } from './cart-sheet';
-import { WhatsAppIcon } from './whatsapp-icon';
+import { WhatsAppIcon } from "@/components/whatsapp-icon"
+import { WHATSAPP_URL } from "@/lib/whatsapp";
 import { User } from 'lucide-react';
 import logo from '@/imagens/logo.png';
 import { useEffect, useState } from 'react';
@@ -62,7 +63,7 @@ export function Navbar() {
           </Link>
           <CartSheet />
           <Button variant="default" className="gap-2 rounded-xl font-bold bg-pink-gradient text-white hover:opacity-90 border-none px-6 shadow-md hidden md:flex h-12" asChild>
-            <a href="https://wa.me/5531999384130" target="_blank" rel="noopener noreferrer">
+            <a href={WHATSAPP_URL} target="_blank" rel="noopener noreferrer">
               <WhatsAppIcon className="w-5 h-5 fill-white" />
               WhatsApp
             </a>

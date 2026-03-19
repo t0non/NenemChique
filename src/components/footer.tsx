@@ -6,6 +6,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
+import { WHATSAPP_URL } from '@/lib/whatsapp';
 import logo from '@/imagens/logo.png';
 
 export function Footer() {
@@ -74,7 +75,7 @@ export function Footer() {
               <a href="https://www.facebook.com/nenemchiquee" target="_blank" rel="noopener noreferrer" aria-label="Facebook" className="p-3 bg-primary/5 rounded-2xl text-primary hover:bg-primary hover:text-white transition-all shadow-sm">
                 <Facebook className="w-6 h-6" />
               </a>
-              <a href="https://wa.me/5531999384130" aria-label="WhatsApp" className="p-3 bg-primary/5 rounded-2xl text-primary hover:bg-primary hover:text-white transition-all shadow-sm">
+              <a href={WHATSAPP_URL} aria-label="WhatsApp" className="p-3 bg-primary/5 rounded-2xl text-primary hover:bg-primary hover:text-white transition-all shadow-sm">
                 <MessageCircle className="w-6 h-6" />
               </a>
             </div>
@@ -131,7 +132,7 @@ export function Footer() {
         
         <div className="mt-20 pt-10 border-t border-primary/5 text-center">
           <p className="text-sm text-muted-foreground font-medium opacity-70">
-            © {new Date().getFullYear()} Neném Chique. Todos os direitos reservados.
+            © 2025 Neném Chique. Todos os direitos reservados.
           </p>
           <div className="mt-2 flex items-center justify-center gap-2 text-xs">
             <span className="text-muted-foreground">Feito pela</span>

@@ -4,9 +4,10 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { WhatsAppIcon } from "@/components/whatsapp-icon"
+import { WHATSAPP_URL } from "@/lib/whatsapp"
 
 export function FAQ() {
-  const wa = "https://wa.me/5531999384130"
+  const wa = WHATSAPP_URL
   return (
     <section id="faq" className="py-10 bg-white border-t border-primary/5">
       <div className="container-standard">

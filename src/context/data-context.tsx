@@ -3,8 +3,15 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Product, Category, Coupon, Review } from '@/lib/types';
 import { PRODUCTS, CATEGORIES } from '@/lib/data';
-import { supabase } from '@/lib/supabase';
 import { errToString } from '@/lib/utils';
+
+let supabaseRef: any = null;
+const loadSupabase = async () => {
+  if (!supabaseRef) {
+    supabaseRef = (await import('@/lib/supabase')).supabase;
+  }
+  return supabaseRef;
+};
 
 interface SiteSettings {
   marqueeItems: string[];
@@ -51,7 +58,7 @@ const DEFAULT_SETTINGS: SiteSettings = {
     "MAIS DE 2.000 MÃES JÁ APROVARAM"
   ],
   promotionText: "✨ 10% OFF NA SUA PRIMEIRA COMPRA! REGISTRE-SE AGORA E GANHE SEU CUPOM.",
-  promotionCountdown: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
+  promotionCountdown: new Date('2025-12-31T23:59:59').toISOString(),
   heroTitle: "Amor que veste, conforto que abraça.",
   heroDescription: "Tecidos hipoalergênicos e curadoria especializada. Peças escolhidas para a pele mais sensível do mundo.",
   heroImageUrl: "https://picsum.photos/seed/baby1/800/800",
@@ -199,6 +206,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       );
 
       const fetchPromise = (async () => {
+        const supabase = await loadSupabase();
         try {
           const { data: pData, error: pError } = await supabase
             .from('products')
@@ -269,6 +277,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         '';
       if (!hasSupabase) return;
       // No admin, sempre forçamos o carregamento de tudo, incluindo cupons
+      const supabase = await loadSupabase();
       const { data: cpData } = await supabase.from('coupons').select('*');
       if (cpData) setCoupons(cpData.map(mapCouponFromDB));
       
@@ -285,32 +294,41 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const addProduct = async (p: any) => {
+    const supabase = await loadSupabase();
     let payload = mapProductToDB(p);
     let res = await supabase.from('products').insert([payload]);
     if (res.error) {
       const msg = String(res.error.message || '');
       let tmp: any = { ...payload };
+      let hasMissingColumn = false;
+      
       if (msg.includes('gender')) {
         const { gender, ...rest } = tmp;
         tmp = rest;
+        hasMissingColumn = true;
       }
       if (msg.includes('colors')) {
         const { colors, ...rest } = tmp;
         tmp = rest;
+        hasMissingColumn = true;
       }
       if (msg.includes('sizes')) {
         const { sizes, ...rest } = tmp;
         tmp = rest;
+        hasMissingColumn = true;
       }
       if (msg.includes('is_best_seller')) {
         const { is_best_seller, ...rest } = tmp;
         tmp = rest;
+        hasMissingColumn = true;
       }
       if (msg.includes('best_seller_rank')) {
         const { best_seller_rank, ...rest } = tmp;
         tmp = rest;
+        hasMissingColumn = true;
       }
-      if (tmp !== payload) {
+      
+      if (hasMissingColumn && tmp !== payload) {
         const retry = await supabase.from('products').insert([tmp]);
         if (retry.error) throw retry.error;
       } else {
@@ -321,32 +339,41 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   };
 
   const updateProduct = async (id: string, p: any) => {
+    const supabase = await loadSupabase();
     let payload = mapProductToDB(p);
     let res = await supabase.from('products').update(payload).eq('id', id);
     if (res.error) {
       const msg = String(res.error.message || '');
       let tmp: any = { ...payload };
+      let hasMissingColumn = false;
+      
       if (msg.includes('gender')) {
         const { gender, ...rest } = tmp;
         tmp = rest;
+        hasMissingColumn = true;
       }
       if (msg.includes('colors')) {
         const { colors, ...rest } = tmp;
         tmp = rest;
+        hasMissingColumn = true;
       }
       if (msg.includes('sizes')) {
         const { sizes, ...rest } = tmp;
         tmp = rest;
+        hasMissingColumn = true;
       }
       if (msg.includes('is_best_seller')) {
         const { is_best_seller, ...rest } = tmp;
         tmp = rest;
+        hasMissingColumn = true;
       }
       if (msg.includes('best_seller_rank')) {
         const { best_seller_rank, ...rest } = tmp;
         tmp = rest;
+        hasMissingColumn = true;
       }
-      if (tmp !== payload) {
+      
+      if (hasMissingColumn && tmp !== payload) {
         const retry = await supabase.from('products').update(tmp).eq('id', id);
         if (retry.error) throw retry.error;
       } else {
@@ -357,24 +384,28 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   };
 
   const deleteProduct = async (id: string) => {
+    const supabase = await loadSupabase();
     const { error } = await supabase.from('products').delete().eq('id', id);
     if (error) throw error;
     await fetchData();
   };
 
   const addCategory = async (c: any) => {
+    const supabase = await loadSupabase();
     const { error } = await supabase.from('categories').insert([c]);
     if (error) throw new Error(error.message || 'Erro ao salvar categoria');
     await fetchData();
   };
 
   const updateCategory = async (id: string, c: any) => {
+    const supabase = await loadSupabase();
     const { error } = await supabase.from('categories').update(c).eq('id', id);
     if (error) throw new Error(error.message || 'Erro ao atualizar categoria');
     await fetchData();
   };
 
   const addCoupon = async (c: any) => {
+    const supabase = await loadSupabase();
     let payload = mapCouponToDB(c);
     let { error } = await supabase.from('coupons').insert([payload]);
     if (error && String(error.message || '').includes('expires_at')) {
@@ -389,6 +420,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   };
 
   const updateCoupon = async (id: string, c: any) => {
+    const supabase = await loadSupabase();
     let payload = mapCouponToDB(c);
     let { error } = await supabase.from('coupons').update(payload).eq('id', id);
     if (error && String(error.message || '').includes('expires_at')) {
@@ -403,6 +435,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   };
 
   const deleteCategory = async (id: string) => {
+    const supabase = await loadSupabase();
     const { error } = await supabase.from('categories').delete().eq('id', id);
     if (error) throw error;
     await fetchData();
@@ -411,6 +444,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
  
 
   const deleteCoupon = async (id: string) => {
+    const supabase = await loadSupabase();
     const { error } = await supabase.from('coupons').delete().eq('id', id);
     if (error) throw error;
     await fetchData();
@@ -418,6 +452,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   };
 
   const updateSettings = async (s: SiteSettings) => {
+    const supabase = await loadSupabase();
     const { error } = await supabase.from('settings').upsert([{ id: 1, ...mapSettingsToDB(s) }]);
     if (error) throw error;
     await fetchData();

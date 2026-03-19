@@ -174,6 +174,20 @@ BEGIN
     ) THEN
       ALTER TABLE products ADD COLUMN sizes text[] DEFAULT '{}';
     END IF;
+    IF NOT EXISTS (
+      SELECT 1 
+      FROM information_schema.columns 
+      WHERE table_name = 'products' AND column_name = 'is_best_seller'
+    ) THEN
+      ALTER TABLE products ADD COLUMN is_best_seller boolean DEFAULT false;
+    END IF;
+    IF NOT EXISTS (
+      SELECT 1 
+      FROM information_schema.columns 
+      WHERE table_name = 'products' AND column_name = 'best_seller_rank'
+    ) THEN
+      ALTER TABLE products ADD COLUMN best_seller_rank integer;
+    END IF;
   END IF;
 END
 $$;
