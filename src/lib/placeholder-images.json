@@ -1,0 +1,40 @@
+{
+  "placeholderImages": [
+    {
+      "id": "hero-baby",
+      "description": "Bebê com roupinha delicada",
+      "imageUrl": "https://images.unsplash.com/photo-1766918780914-e19d9de76d85?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw5fHxiYWJ5JTIwY2xvdGhpbmd8ZW58MHx8fHwxNzcyNDU5MjU0fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "baby clothing"
+    },
+    {
+      "id": "checklist-layette",
+      "description": "Enxoval organizado",
+      "imageUrl": "https://images.unsplash.com/photo-1630650916184-e9ec1f90ed76?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxiYWJ5JTIwbGF5ZXR0ZXxlbnwwfHx8fDE3NzI0NTkyNTR8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "baby layette"
+    },
+    {
+      "id": "cat-saidas",
+      "description": "Saídas de Maternidade em destaque",
+      "imageUrl": "https://images.unsplash.com/photo-1766918780916-228d10b071be?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw4fHxiYWJ5JTIwY2xvdGhpbmd8ZW58MHx8fHwxNzcyNDU5MjU0fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "baby clothing"
+    },
+    {
+      "id": "cat-bodies",
+      "description": "Bodies e macacões macios",
+      "imageUrl": "https://images.unsplash.com/photo-1560251180-4d89132cdab2?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw3fHxiYWJ5JTIwYm9keXxlbnwwfHx8fDE3NzI0NTkyNTR8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "baby body"
+    },
+    {
+      "id": "cat-sapatinhos",
+      "description": "Sapatinhos e pantufas delicadas",
+      "imageUrl": "https://images.unsplash.com/photo-1602685365252-c13f549f1f5f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwzfHxiYWJ5JTIwc2hvZXN8ZW58MHx8fHwxNzcyNDcxMTU0fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "baby shoes"
+    },
+    {
+      "id": "cat-kits",
+      "description": "Kits enxoval completos",
+      "imageUrl": "https://images.unsplash.com/photo-1630650916184-e9ec1f90ed76?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxiYWJ5JTIwbGF5ZXR0ZXxlbnwwfHx8fDE3NzI0NTkyNTR8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "baby layette"
+    }
+  ]
+}
